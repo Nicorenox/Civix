@@ -18,13 +18,6 @@ class EmpresaAdmin(admin.ModelAdmin):
 
 
 class UsuarioAdminForm(forms.ModelForm):
-    """
-    Reemplaza el campo crudo `contrasena_hash` por un campo de texto plano
-    llamado `contrasena`. Nunca se muestra ni se guarda el hash existente
-    en el formulario: se deja en blanco y solo se actualiza si el
-    administrador escribe algo nuevo (igual que hace UserAdmin de Django).
-    """
-
     contrasena = forms.CharField(
         label="Contraseña",
         required=False,
