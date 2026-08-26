@@ -1,5 +1,7 @@
 # Civix - Desarrollado Entrega 1
-
+```bash
+  
+   
 # 1. Clonar el repositorio
 git clone https://github.com/Nicorenox/Civix
 Cd <Carpeta donde se clono>
@@ -30,12 +32,18 @@ FAILED (failures=1)
 python manage.py runserver
 
 # 8. Probar
-# - Admin:          http://127.0.0.1:8000/admin/      (Se recomienda hacer esto primero para verificar que existen empresas)
+# - Admin:         
+http://127.0.0.1:8000/admin/      (Se recomienda hacer esto primero para verificar que existen empresas)
 
-# - Desde admin:    Crear Empresa -> Crear Suscripción para esa empresa -> crear usuarios
+# - Desde admin:    
+Crear Empresa -> Crear Suscripción para esa empresa -> crear usuarios
 
-# - Interfaz HTML:  http://127.0.0.1:8000/api/empresas/<empresa_id>/proyectos/crear/ (<empresa_id> requiere de una empresa creada desde admin, se podra ver ingresando a la empresa de admin, en la barra de buscador aparecera algo parecido a: http://127.0.0.1:8000/admin/proyectos/empresa/f090cff2-cd95-43f7-b20d-3e3b9b17db14/change/. Lo que nos importa para llegar a la interfaz es f090cff2-cd95-43f7-b20d-3e3b9b17db14 , este sera nuestro id de empresa )
+# - Interfaz HTML:  
+http://127.0.0.1:8000/api/empresas/<empresa_id>/proyectos/crear/ (<empresa_id> requiere de una empresa creada desde admin, se podra ver ingresando a la empresa de admin, en la barra de buscador aparecera algo parecido a: http://127.0.0.1:8000/admin/proyectos/empresa/f090cff2-cd95-43f7-b20d-3e3b9b17db14/change/. Lo que nos importa para llegar a la interfaz es f090cff2-cd95-43f7-b20d-3e3b9b17db14 , este sera nuestro id de empresa )
 
-# - Login:          http://127.0.0.1:8000/api/login/ (Desde aca si se creo anteriormente un usuario como colaborador o administrador se dara un panel diferente en el cual se busca dar diferentes roles donde se podra crear una nueva inspeccion y confrimarla apareciendo en la bitacora)
+# - Login:          
+http://127.0.0.1:8000/api/login/ (Desde aca si se creo anteriormente un usuario como colaborador o administrador se dara un panel diferente en el cual se busca dar diferentes roles donde se podra crear una nueva inspeccion y confrimarla apareciendo en la bitacora)
 
-# - API:            http://127.0.0.1:8000/api/ (Verficar que la API este funcionando)
+# - API:            
+http://127.0.0.1:8000/api/ (Verficar que la API este funcionando)
+```
