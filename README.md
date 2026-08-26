@@ -1,4 +1,7 @@
 # Civix - Desarrollado Entrega 1
+
+Wiki creada del entregrable 1 con informacion detallada
+
 ```bash
   
    
