@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Civix — Panel</title>
+<style>
+    :root {
+        --azul-oscuro: #0f1e3d;
+        --azul: #16305e;
+        --acento: #3b82f6;
+        --gris: #64748b;
+        --gris-claro: #f1f5f9;
+        --borde: #e2e8f0;
+        --verde: #059669;
+        --naranja: #d97706;
+        --rojo: #dc2626;
+    }
+    * { box-sizing: border-box; }
+    body {
+        margin: 0;
+        font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+        background: #f8fafc;
+        color: #1e293b;
+    }
+    header {
+        background: var(--azul-oscuro);
+        color: #fff;
+        padding: 16px 28px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    header .marca { font-weight: 700; font-size: 18px; }
+    header .marca span { color: #93c5fd; font-weight: 400; font-size: 13px; margin-left: 8px; }
+    .usuario-info { display: flex; align-items: center; gap: 14px; font-size: 13px; }
+    .usuario-info .rol-badge {
+        background: #1d3a6b; padding: 3px 10px; border-radius: 999px; font-size: 11px;
+        text-transform: uppercase; letter-spacing: 0.04em;
+    }
+    button.logout {
+        background: transparent; border: 1px solid #3b5583; color: #cbd5e1;
+        padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;
+    }
+    main { max-width: 1080px; margin: 0 auto; padding: 24px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+    .tarjeta {
+        background: #fff; border: 1px solid var(--borde); border-radius: 12px;
+        padding: 18px; margin-bottom: 20px;
+    }
+    .tarjeta h2 { font-size: 15px; margin: 0 0 14px 0; color: var(--azul-oscuro); }
+    .proyecto-card {
+        background: #fff; border: 1px solid var(--borde); border-radius: 12px;
+        padding: 16px; cursor: pointer; transition: box-shadow .15s;
+    }
+    .proyecto-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.08); }
+    .proyecto-card.seleccionado { border-color: var(--acento); box-shadow: 0 0 0 2px #bfdbfe; }
+    .proyecto-card h3 { margin: 0 0 4px 0; font-size: 15px; }
+    .proyecto-card .meta { font-size: 12px; color: var(--gris); margin-bottom: 10px; }
+    .badge { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 999px; }
+    .badge.bajo { background: #ecfdf5; color: var(--verde); }
+    .badge.medio { background: #fffbeb; color: var(--naranja); }
+    .badge.alto { background: #fef2f2; color: var(--rojo); }
+    .barra { height: 6px; background: var(--gris-claro); border-radius: 999px; margin-top: 10px; overflow: hidden; }
+    .barra > div { height: 100%; background: var(--acento); }
+    label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; color: #334155; }
+    input, select, textarea {
+        width: 100%; padding: 8px 10px; border: 1px solid var(--borde);
+        border-radius: 6px; font-size: 13px; margin-bottom: 12px; font-family: inherit;
+    }
+    .fila { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    button.primario {
+        background: var(--azul-oscuro); color: #fff; border: none; padding: 9px 16px;
+        border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer;
+    }
+    button.primario:hover { background: var(--azul); }
+    button.secundario {
+        background: #fff; color: var(--azul-oscuro); border: 1px solid var(--borde);
+        padding: 7px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; margin-right: 6px;
+    }
+    .inspeccion-item { border: 1px solid var(--borde); border-radius: 10px; padding: 12px; margin-bottom: 10px; }
+    .inspeccion-item .top { display: flex; justify-content: space-between; align-items: center; }
+    .bitacora-item { padding: 10px 0; border-bottom: 1px solid var(--gris-claro); font-size: 13px; }
+    .bitacora-item .accion { font-weight: 600; color: var(--azul-oscuro); }
+    .bitacora-item .fecha { color: var(--gris); font-size: 11px; }
+    .vacio { color: var(--gris); font-size: 13px; padding: 12px 0; }
+    .oculto { display: none !important; }
+    .mensaje-ok { background: #ecfdf5; color: var(--verde); padding: 8px 12px; border-radius: 6px; font-size: 12px; margin-bottom: 12px; }
+    .mensaje-error { background: #fef2f2; color: var(--rojo); padding: 8px 12px; border-radius: 6px; font-size: 12px; margin-bottom: 12px; }
+</style>
+</head>
+<body>
+
+<header>
+    <div class="marca">CIVIX <span>Panel de demostración — Entrega 1</span></div>
+    <div class="usuario-info">
+        <span id="usuario-nombre"></span>
+        <span class="rol-badge" id="usuario-rol"></span>
+        <button class="logout" id="btn-logout">Cerrar sesión</button>
+    </div>
+</header>
+
+<main>
+    <div class="tarjeta">
+        <h2>Proyectos de mi empresa</h2>
+        <div id="lista-proyectos" class="grid"><p class="vacio">Cargando…</p></div>
+    </div>
+
+    <!-- Solo visible para roles operativos -->
+    <div class="tarjeta oper-solo">
+        <h2>Crear proyecto</h2>
+        <div id="msg-crear-proyecto"></div>
+        <form id="form-crear-proyecto">
+            <label>Nombre</label>
+            <input type="text" id="cp-nombre" required>
+            <label>Descripción</label>
+            <input type="text" id="cp-descripcion">
+            <div class="fila">
+                <div><label>Fecha inicio</label><input type="date" id="cp-fecha-inicio"></div>
+                <div><label>Fecha fin</label><input type="date" id="cp-fecha-fin"></div>
+            </div>
+            <button type="submit" class="primario">Crear proyecto</button>
+        </form>
+    </div>
+
+    <div class="tarjeta">
+        <h2>Proyecto seleccionado: <span id="proyecto-actual-nombre">ninguno</span></h2>
+
+        <!-- Solo visible para roles operativos -->
+        <div class="oper-solo" id="bloque-nueva-inspeccion">
+            <h2 style="margin-top:18px;">Nueva inspección</h2>
+            <div id="msg-crear-inspeccion"></div>
+            <form id="form-crear-inspeccion">
+                <div class="fila">
+                    <div>
+                        <label>Tipo de inspección</label>
+                        <select id="ins-tipo">
+                            <option value="avance_general">Avance general</option>
+                            <option value="estructura">Estructura</option>
+                            <option value="fachada_acabados">Fachada y acabados</option>
+                            <option value="instalaciones">Instalaciones</option>
+                            <option value="otro">Otro</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Fecha de visita</label>
+                        <input type="date" id="ins-fecha" required>
+                    </div>
+                </div>
+                <label>Observaciones</label>
+                <textarea id="ins-observaciones" rows="2"></textarea>
+                <div class="fila">
+                    <div>
+                        <label>% de avance reportado</label>
+                        <input type="number" id="ins-avance" min="0" max="100" step="0.01" required>
+                    </div>
+                    <div>
+                        <label>Fotografías</label>
+                        <input type="file" id="ins-fotos" multiple accept="image/*">
+                    </div>
+                </div>
+                <button type="submit" class="primario">Registrar inspección (queda pendiente)</button>
+            </form>
+
+            <h2 style="margin-top:22px;">Inspecciones pendientes de confirmación</h2>
+            <div id="lista-pendientes"><p class="vacio">Selecciona un proyecto.</p></div>
+        </div>
+
+        <h2 style="margin-top:22px;">Bitácora del proyecto</h2>
+        <div id="lista-bitacora"><p class="vacio">Selecciona un proyecto.</p></div>
+    </div>
+</main>
+
+<script>
+const TOKEN = localStorage.getItem("civix_token");
+const USUARIO = JSON.parse(localStorage.getItem("civix_usuario") || "null");
+
+if (!TOKEN || !USUARIO) {
+    window.location.href = "/api/login/";
+}
+
+let proyectoActualId = null;
+
+async function civixFetch(url, options = {}) {
+    options.headers = Object.assign(
+        { "Authorization": `Token ${TOKEN}` },
+        options.headers || {}
+    );
+    const resp = await fetch(url, options);
+    return resp;
+}
+
+function iniciarPanel() {
+    document.getElementById("usuario-nombre").textContent = USUARIO.nombre;
+    document.getElementById("usuario-rol").textContent = USUARIO.rol_display || USUARIO.rol;
+
+    if (USUARIO.es_gerencial) {
+        document.querySelectorAll(".oper-solo").forEach(el => el.classList.add("oculto"));
+    }
+
+    document.getElementById("btn-logout").addEventListener("click", cerrarSesion);
+    document.getElementById("form-crear-proyecto").addEventListener("submit", crearProyecto);
+    document.getElementById("form-crear-inspeccion").addEventListener("submit", crearInspeccion);
+
+    cargarProyectos();
+}
+
+async function cerrarSesion() {
+    await civixFetch("/api/auth/logout/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: TOKEN }),
+    });
+    localStorage.removeItem("civix_token");
+    localStorage.removeItem("civix_usuario");
+    window.location.href = "/api/login/";
+}
+
+async function cargarProyectos() {
+    const cont = document.getElementById("lista-proyectos");
+    const resp = await civixFetch(`/api/empresas/${USUARIO.empresa}/proyectos/`);
+    const proyectos = await resp.json();
+
+    if (!proyectos.length) {
+        cont.innerHTML = '<p class="vacio">Aún no hay proyectos. Crea el primero arriba.</p>';
+        return;
+    }
+
+    cont.innerHTML = "";
+    proyectos.forEach(p => {
+        const div = document.createElement("div");
+        div.className = "proyecto-card" + (p.id === proyectoActualId ? " seleccionado" : "");
+        div.innerHTML = `
+            <h3>${p.nombre}</h3>
+            <div class="meta">${p.ciudad || "Ciudad no definida"} · ${p.tipo_proyecto || "Sin tipo"}</div>
+            <span class="badge ${p.riesgo}">Riesgo ${p.riesgo}</span>
+            <div class="barra"><div style="width:${p.porcentaje_avance}%"></div></div>
+            <div class="meta" style="margin-top:6px;">${p.porcentaje_avance}% de avance</div>
+        `;
+        div.addEventListener("click", () => seleccionarProyecto(p.id, p.nombre));
+        cont.appendChild(div);
+    });
+
+    // Si no hay proyecto seleccionado aun, selecciona el primero automaticamente.
+    if (!proyectoActualId && proyectos.length) {
+        seleccionarProyecto(proyectos[0].id, proyectos[0].nombre);
+    }
+}
+
+function seleccionarProyecto(id, nombre) {
+    proyectoActualId = id;
+    document.getElementById("proyecto-actual-nombre").textContent = nombre;
+    cargarProyectos();
+    cargarBitacora(id);
+    if (!USUARIO.es_gerencial) cargarPendientes(id);
+}
+
+async function crearProyecto(ev) {
+    ev.preventDefault();
+    const msg = document.getElementById("msg-crear-proyecto");
+    msg.innerHTML = "";
+
+    const body = {
+        nombre: document.getElementById("cp-nombre").value,
+        descripcion: document.getElementById("cp-descripcion").value,
+        fechaInicio: document.getElementById("cp-fecha-inicio").value || null,
+        fechaFin: document.getElementById("cp-fecha-fin").value || null,
+    };
+
+    const resp = await civixFetch(`/api/empresas/${USUARIO.empresa}/proyectos/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+    });
+    const datos = await resp.json();
+
+    if (!resp.ok) {
+        msg.innerHTML = `<div class="mensaje-error">${datos.error || JSON.stringify(datos)}</div>`;
+        return;
+    }
+
+    msg.innerHTML = `<div class="mensaje-ok">Proyecto "${datos.nombre}" creado.</div>`;
+    document.getElementById("form-crear-proyecto").reset();
+    cargarProyectos();
+}
+
+async function crearInspeccion(ev) {
+    ev.preventDefault();
+    const msg = document.getElementById("msg-crear-inspeccion");
+    msg.innerHTML = "";
+
+    if (!proyectoActualId) {
+        msg.innerHTML = `<div class="mensaje-error">Selecciona un proyecto primero.</div>`;
+        return;
+    }
+
+    const form = new FormData();
+    form.append("usuario_id", USUARIO.id);
+    form.append("tipo_inspeccion", document.getElementById("ins-tipo").value);
+    form.append("observaciones", document.getElementById("ins-observaciones").value);
+    form.append("fecha_visita", document.getElementById("ins-fecha").value);
+    form.append("porcentaje_avance_reportado", document.getElementById("ins-avance").value);
+
+    const fotos = document.getElementById("ins-fotos").files;
+    for (let i = 0; i < fotos.length; i++) {
+        form.append("fotografias", fotos[i]);
+    }
+
+    const resp = await civixFetch(`/api/proyectos/${proyectoActualId}/inspecciones/`, {
+        method: "POST",
+        body: form,
+    });
+    const datos = await resp.json();
+
+    if (!resp.ok) {
+        msg.innerHTML = `<div class="mensaje-error">${datos.error || JSON.stringify(datos)}</div>`;
+        return;
+    }
+
+    msg.innerHTML = `<div class="mensaje-ok">Inspección registrada como pendiente.</div>`;
+    document.getElementById("form-crear-inspeccion").reset();
+    cargarPendientes(proyectoActualId);
+}
+
+async function cargarPendientes(proyectoId) {
+    const cont = document.getElementById("lista-pendientes");
+    const resp = await civixFetch(`/api/proyectos/${proyectoId}/inspecciones/?estado=pendiente`);
+    const inspecciones = await resp.json();
+
+    if (!inspecciones.length) {
+        cont.innerHTML = '<p class="vacio">No hay inspecciones pendientes.</p>';
+        return;
+    }
+
+    cont.innerHTML = "";
+    inspecciones.forEach(insp => {
+        const div = document.createElement("div");
+        div.className = "inspeccion-item";
+        div.innerHTML = `
+            <div class="top">
+                <div>
+                    <strong>${insp.tipo_inspeccion_display}</strong>
+                    — ${insp.porcentaje_avance_reportado}% reportado
+                    <div class="meta" style="color:#64748b;font-size:12px;">
+                        ${insp.inspector_nombre} · ${insp.fecha_visita} · ${insp.fotografias.length} foto(s)
+                    </div>
+                </div>
+                <div>
+                    <button class="secundario" data-accion="confirmar" data-id="${insp.id}">Confirmar</button>
+                    <button class="secundario" data-accion="corregir" data-id="${insp.id}">Corregir</button>
+                </div>
+            </div>
+        `;
+        cont.appendChild(div);
+    });
+
+    cont.querySelectorAll("[data-accion='confirmar']").forEach(btn => {
+        btn.addEventListener("click", () => confirmarInspeccion(btn.dataset.id));
+    });
+    cont.querySelectorAll("[data-accion='corregir']").forEach(btn => {
+        btn.addEventListener("click", () => corregirInspeccion(btn.dataset.id));
+    });
+}
+
+async function confirmarInspeccion(inspeccionId) {
+    const resp = await civixFetch(`/api/inspecciones/${inspeccionId}/confirmar/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ usuario_id: USUARIO.id }),
+    });
+    const datos = await resp.json();
+
+    if (!resp.ok) {
+        alert(datos.error || "No se pudo confirmar (409: la inspección ya no está pendiente).");
+        cargarPendientes(proyectoActualId);
+        return;
+    }
+
+    cargarProyectos();
+    cargarPendientes(proyectoActualId);
+    cargarBitacora(proyectoActualId);
+}
+
+async function corregirInspeccion(inspeccionId) {
+    const nuevoAvance = prompt("Nuevo % de avance reportado (deja vacío para no cambiar):");
+    const nuevasObs = prompt("Nuevas observaciones (deja vacío para no cambiar):");
+
+    const body = {};
+    if (nuevoAvance) body.porcentaje_avance_reportado = nuevoAvance;
+    if (nuevasObs) body.observaciones = nuevasObs;
+    body.usuario_id = USUARIO.id;
+
+    const resp = await civixFetch(`/api/inspecciones/${inspeccionId}/corregir/`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+    });
+    const datos = await resp.json();
+
+    if (!resp.ok) {
+        alert(datos.error || "No se pudo corregir.");
+    }
+    cargarPendientes(proyectoActualId);
+}
+
+async function cargarBitacora(proyectoId) {
+    const cont = document.getElementById("lista-bitacora");
+    const resp = await civixFetch(`/api/proyectos/${proyectoId}/bitacora/`);
+    const registros = await resp.json();
+
+    if (!registros.length) {
+        cont.innerHTML = '<p class="vacio">Sin actividad registrada todavía.</p>';
+        return;
+    }
+
+    cont.innerHTML = "";
+    registros.forEach(r => {
+        const div = document.createElement("div");
+        div.className = "bitacora-item";
+        div.innerHTML = `
+            <div class="accion">${r.accion_display}</div>
+            <div>${r.descripcion}</div>
+            <div class="fecha">${new Date(r.creado_en).toLocaleString()} · ${r.usuario_nombre || "Sistema"}</div>
+        `;
+        cont.appendChild(div);
+    });
+}
+
+iniciarPanel();
+</script>
+</body>
+</html>

@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Civix — Iniciar sesión</title>
+<style>
+    :root {
+        --azul-oscuro: #0f1e3d;
+        --azul: #16305e;
+        --acento: #3b82f6;
+        --texto-claro: #f4f6fb;
+        --gris: #64748b;
+        --borde: #e2e8f0;
+        --error: #dc2626;
+    }
+    * { box-sizing: border-box; }
+    body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, var(--azul-oscuro), var(--azul));
+        font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+    .tarjeta {
+        width: 100%;
+        max-width: 380px;
+        background: #fff;
+        border-radius: 14px;
+        padding: 36px 32px;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+    }
+    .marca {
+        font-size: 13px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--gris);
+        margin-bottom: 4px;
+    }
+    h1 {
+        font-size: 24px;
+        margin: 0 0 24px 0;
+        color: var(--azul-oscuro);
+    }
+    label {
+        display: block;
+        font-size: 13px;
+        font-weight: 600;
+        margin-bottom: 6px;
+        color: #334155;
+    }
+    input {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid var(--borde);
+        border-radius: 8px;
+        font-size: 14px;
+        margin-bottom: 16px;
+    }
+    input:focus { outline: 2px solid var(--acento); border-color: transparent; }
+    button {
+        width: 100%;
+        padding: 12px;
+        border: none;
+        border-radius: 8px;
+        background: var(--azul-oscuro);
+        color: #fff;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+    button:hover { background: var(--azul); }
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
+    .mensaje {
+        margin-top: 14px;
+        font-size: 13px;
+        padding: 10px 12px;
+        border-radius: 8px;
+        display: none;
+    }
+    .mensaje.error {
+        display: block;
+        background: #fef2f2;
+        color: var(--error);
+        border: 1px solid #fecaca;
+    }
+    .nota {
+        margin-top: 20px;
+        font-size: 12px;
+        color: var(--gris);
+        text-align: center;
+        line-height: 1.5;
+    }
+    .badge {
+        display: inline-block;
+        font-size: 11px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: #ecfdf5;
+        color: #059669;
+        border: 1px solid #a7f3d0;
+        margin-top: 12px;
+    }
+</style>
+</head>
+<body>
+    <div class="tarjeta">
+        <div class="marca">Civix</div>
+        <h1>Iniciar sesión</h1>
+
+        <form id="form-login">
+            <label for="correo">Correo</label>
+            <input type="email" id="correo" name="correo" required placeholder="usuario@empresa.com">
+
+            <label for="contrasena">Contraseña</label>
+            <input type="password" id="contrasena" name="contrasena" required placeholder="••••••••">
+
+            <button type="submit" id="btn-login">Entrar</button>
+        </form>
+
+        <div class="mensaje" id="mensaje-error"></div>
+
+        <div class="nota">
+            Sesión protegida por token de acceso.
+            <br>Verificación 2FA / dispositivo autorizado: preparado, aún no exigido.
+        </div>
+        <div style="text-align:center;">
+            <span class="badge">● Entorno de pruebas</span>
+        </div>
+    </div>
+
+<script>
+document.getElementById("form-login").addEventListener("submit", async function (ev) {
+    ev.preventDefault();
+
+    const boton = document.getElementById("btn-login");
+    const mensaje = document.getElementById("mensaje-error");
+    mensaje.className = "mensaje";
+    mensaje.textContent = "";
+    boton.disabled = true;
+    boton.textContent = "Ingresando...";
+
+    const correo = document.getElementById("correo").value;
+    const contrasena = document.getElementById("contrasena").value;
+    const dispositivo = navigator.platform + " · " + (navigator.userAgentData?.brands?.[0]?.brand || navigator.appName);
+
+    try {
+        const resp = await fetch("/api/auth/login/", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ correo, contrasena, dispositivo }),
+        });
+        const datos = await resp.json();
+
+        if (!resp.ok) {
+            mensaje.className = "mensaje error";
+            mensaje.textContent = datos.error || "No se pudo iniciar sesión.";
+            boton.disabled = false;
+            boton.textContent = "Entrar";
+            return;
+        }
+
+        localStorage.setItem("civix_token", datos.token);
+        localStorage.setItem("civix_usuario", JSON.stringify(datos.usuario));
+        window.location.href = "/api/panel/";
+    } catch (err) {
+        mensaje.className = "mensaje error";
+        mensaje.textContent = "Error de conexión con el servidor.";
+        boton.disabled = false;
+        boton.textContent = "Entrar";
+    }
+});
+</script>
+</body>
+</html>
