@@ -10,6 +10,18 @@ from .models import (
 )
 
 
+from django.contrib import admin
+from .models import (
+    Empresa,
+    Usuario,
+    Suscripcion,
+    Proyecto,
+    Inspeccion,
+    Fotografia,
+    RegistroBitacora,
+)
+
+
 @admin.register(Empresa)
 class EmpresaAdmin(admin.ModelAdmin):
     list_display = ("nombre", "nit", "plan", "estado")
