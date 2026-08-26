@@ -1,42 +1,41 @@
-# Civix - Taller 01 desarrollado
+# Civix - Desarrollado Entrega 1
 
-## Qué tenía el proyecto original
+# 1. Clonar el repositorio
+git clone https://github.com/Nicorenox/Civix
+Cd <Carpeta donde se clono>
+cd Civix 
 
-La base ya incluía:
-- Modelos Empresa, Usuario, Suscripcion y Proyecto.
-- Migración inicial.
-- Builder para construir Proyecto.
-- Service Layer para el caso de uso.
-- Factory + Notificador.
-- Endpoint POST JSON.
-- Configuración básica de Django.
+# 2. Crear entorno virtual
+python -m venv venv
+source venv/bin/activate        # Windows: venv\Scripts\activate
 
-## Qué faltaba
+# 3. Instalar dependencias
+pip install -r requirements.txt
 
-1. Template HTML.
-2. Vista Django para renderizar el template.
-3. Ruta para abrir el formulario desde el navegador.
-4. JavaScript para enviar el formulario al endpoint.
-5. Conversión segura de fechas `YYYY-MM-DD` a objetos `date`.
-6. Una ruta raíz sencilla para comprobar que el proyecto está funcionando.
-7. Pruebas automatizadas del flujo principal.
-8. Autenticación/autorización real (pendiente para una versión posterior).
-
-## Ejecutar
-
-```cmd
+# 4. Aplicar migraciones
 python manage.py migrate
+
+# 5. (Opcional) Crear superusuario para el panel /admin/
+python manage.py createsuperuser
+
+# 6. Correr las pruebas (deben pasar las 11)
+python manage.py test
+
+###Puede ocurrir que un test falle ya que se hace aleatoriamente y un test es precisamente que la inspeccion se confirme para que el avance sea actualizado, por ende estso terminos se dan aleatorios y pueden fallar dando:
+
+'inspeccion_confirmada' != 'avance_actualizado' 
+FAILED (failures=1)
+
+# 7. Levantar el servidor para pruebas graficas
 python manage.py runserver
-```
 
-El formulario queda disponible como:
+# 8. Probar
+# - Admin:          http://127.0.0.1:8000/admin/      (Se recomienda hacer esto primero para verificar que existen empresas)
 
-```text
-/api/empresas/<UUID_DE_EMPRESA>/proyectos/crear/
-```
+# - Desde admin:    Crear Empresa -> Crear Suscripción para esa empresa -> crear usuarios
 
-Primero crea una Empresa y una Suscripcion desde `/admin/`, y luego usa el UUID de esa empresa.
+# - Interfaz HTML:  http://127.0.0.1:8000/api/empresas/<empresa_id>/proyectos/crear/ (<empresa_id> requiere de una empresa creada desde admin, se podra ver ingresando a la empresa de admin, en la barra de buscador aparecera algo parecido a: http://127.0.0.1:8000/admin/proyectos/empresa/f090cff2-cd95-43f7-b20d-3e3b9b17db14/change/. Lo que nos importa para llegar a la interfaz es f090cff2-cd95-43f7-b20d-3e3b9b17db14 , este sera nuestro id de empresa )
 
-## Nota
+# - Login:          http://127.0.0.1:8000/api/login/ (Desde aca si se creo anteriormente un usuario como colaborador o administrador se dara un panel diferente en el cual se busca dar diferentes roles donde se podra crear una nueva inspeccion y confrimarla apareciendo en la bitacora)
 
-El modelo `Usuario` del proyecto es propio y contiene `contrasena_hash`; no reemplaza el sistema de autenticación de Django. Para producción conviene integrar `django.contrib.auth` o un usuario personalizado de Django.
+# - API:            http://127.0.0.1:8000/api/ (Verficar que la API este funcionando)
