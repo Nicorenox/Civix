@@ -10,18 +10,6 @@ from .models import (
 )
 
 
-from django.contrib import admin
-from .models import (
-    Empresa,
-    Usuario,
-    Suscripcion,
-    Proyecto,
-    Inspeccion,
-    Fotografia,
-    RegistroBitacora,
-)
-
-
 @admin.register(Empresa)
 class EmpresaAdmin(admin.ModelAdmin):
     list_display = ("nombre", "nit", "plan", "estado")
@@ -67,3 +55,4 @@ class FotografiaAdmin(admin.ModelAdmin):
 class RegistroBitacoraAdmin(admin.ModelAdmin):
     list_display = ("proyecto", "accion", "usuario", "creado_en")
     list_filter = ("accion",)
+ 
