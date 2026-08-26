@@ -238,3 +238,4 @@ class InspeccionFlowTests(TestCase):
         registros = response.json()
         self.assertEqual(len(registros), 3)
         self.assertEqual(registros[0]["accion"], "avance_actualizado")
+     
