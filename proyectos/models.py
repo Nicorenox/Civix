@@ -1,14 +1,12 @@
-
-
 import secrets
 import uuid
 
 from django.contrib.auth.hashers import check_password, make_password
-
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+
+
 class Empresa(models.Model):
-    
     class Estado(models.TextChoices):
         ACTIVA = "activa", "Activa"
         SUSPENDIDA = "suspendida", "Suspendida"
@@ -74,6 +72,35 @@ class Usuario(models.Model):
 
     def __str__(self):
         return self.nombre
+
+
+class SesionToken(models.Model):
+    """
+    Token de acceso simple emitido al iniciar sesion. Representa tambien
+    (de forma preparatoria) el concepto de "dispositivo autorizado" de la
+    vision del producto: cada SesionToken queda asociado a una etiqueta de
+    dispositivo. NO implementa mTLS ni 2FA todavia (ver AuthService) - es
+    la base sobre la que esas validaciones se conectarian mas adelante.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    usuario = models.ForeignKey(
+        Usuario, on_delete=models.CASCADE, related_name="sesiones"
+    )
+    token = models.CharField(max_length=64, unique=True, editable=False)
+    dispositivo = models.CharField(max_length=150, blank=True, default="")
+    activo = models.BooleanField(default=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+    ultimo_uso = models.DateTimeField(null=True, blank=True)
+
+    def save(self, *args, **kwargs):
+        if not self.token:
+            self.token = secrets.token_hex(32)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        estado = "activa" if self.activo else "inactiva"
+        return f"Sesion de {self.usuario.nombre} ({estado})"
 
 
 class Suscripcion(models.Model):
@@ -157,6 +184,10 @@ class Proyecto(models.Model):
     fecha_fin = models.DateField(null=True, blank=True)
     imagen_principal = models.CharField(max_length=255, blank=True, default="")
 
+    def __str__(self):
+        return self.nombre
+
+
 class Inspeccion(models.Model):
     """
     Entidad central del flujo operativo. Representa una visita de obra
@@ -193,6 +224,8 @@ class Inspeccion(models.Model):
     )
     observaciones = models.TextField(blank=True, default="")
     fecha_visita = models.DateField()
+    # Avance que el inspector reporta en campo. Se vuelve oficial
+    # (Proyecto.porcentaje_avance) unicamente al confirmar la inspeccion.
     porcentaje_avance_reportado = models.DecimalField(
         max_digits=5,
         decimal_places=2,
@@ -262,31 +295,3 @@ class RegistroBitacora(models.Model):
 
     def __str__(self):
         return f"{self.get_accion_display()} - {self.proyecto.nombre}"
-
-class SesionToken(models.Model):
-    """
-    Token de acceso simple emitido al iniciar sesion. Representa tambien
-    (de forma preparatoria) el concepto de "dispositivo autorizado" de la
-    vision del producto: cada SesionToken queda asociado a una etiqueta de
-    dispositivo. NO implementa mTLS ni 2FA todavia (ver AuthService) - es
-    la base sobre la que esas validaciones se conectarian mas adelante.
-    """
-
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    usuario = models.ForeignKey(
-        Usuario, on_delete=models.CASCADE, related_name="sesiones"
-    )
-    token = models.CharField(max_length=64, unique=True, editable=False)
-    dispositivo = models.CharField(max_length=150, blank=True, default="")
-    activo = models.BooleanField(default=True)
-    creado_en = models.DateTimeField(auto_now_add=True)
-    ultimo_uso = models.DateTimeField(null=True, blank=True)
-
-    def save(self, *args, **kwargs):
-        if not self.token:
-            self.token = secrets.token_hex(32)
-        super().save(*args, **kwargs)
-
-    def __str__(self):
-        estado = "activa" if self.activo else "inactiva"
-        return f"Sesion de {self.usuario.nombre} ({estado})"

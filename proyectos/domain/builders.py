@@ -128,6 +128,8 @@ class InspeccionBuilder:
             raise InspeccionInvalidaError(
                 "El porcentaje de avance reportado debe estar entre 0 y 100."
             )
+        # Regla de negocio: no tiene sentido inspeccionar un proyecto
+        # antes de su fecha oficial de inicio.
         if self._proyecto.fecha_inicio and self._fecha_visita < self._proyecto.fecha_inicio:
             raise InspeccionInvalidaError(
                 "La fecha de visita no puede ser anterior al inicio del proyecto."

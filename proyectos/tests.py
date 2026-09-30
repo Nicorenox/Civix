@@ -237,5 +237,115 @@ class InspeccionFlowTests(TestCase):
         self.assertEqual(response.status_code, 200)
         registros = response.json()
         self.assertEqual(len(registros), 3)
+        # El mas reciente (avance_actualizado) debe ir primero.
         self.assertEqual(registros[0]["accion"], "avance_actualizado")
-     
+
+
+
+class AuthFlowTests(TestCase):
+    """
+    Cubre el flujo de autenticacion del PASO 12: login/logout, el
+    endpoint /me/ (unico con seguridad ya activada), y que los
+    endpoints de negocio siguen funcionando SIN token (no forzado).
+    """
+
+    def setUp(self):
+        self.empresa = Empresa.objects.create(
+            nombre="Archetype Co.", nit="900777666-1", correo="empresa@civix.test"
+        )
+        Suscripcion.objects.create(
+            empresa=self.empresa,
+            plan=Suscripcion.TipoPlan.PROFESIONAL,
+            fecha_inicio=date.today(),
+            fecha_fin=date(2030, 12, 31),
+        )
+        self.inspector = Usuario(
+            empresa=self.empresa,
+            nombre="Julián Cortés",
+            correo="julian@civix.test",
+            rol=Usuario.Rol.COLABORADOR,
+        )
+        self.inspector.set_password("clave123")
+        self.inspector.save()
+
+        self.gerente = Usuario(
+            empresa=self.empresa,
+            nombre="Gabriel Márquez",
+            correo="gabriel@civix.test",
+            rol=Usuario.Rol.GERENTE,
+        )
+        self.gerente.set_password("otraclave")
+        self.gerente.save()
+
+    def test_login_correcto_devuelve_token(self):
+        response = self.client.post(
+            reverse("auth_login"),
+            data={"correo": "julian@civix.test", "contrasena": "clave123"},
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        cuerpo = response.json()
+        self.assertIn("token", cuerpo)
+        self.assertEqual(cuerpo["usuario"]["es_gerencial"], False)
+
+    def test_login_gerente_marca_es_gerencial(self):
+        response = self.client.post(
+            reverse("auth_login"),
+            data={"correo": "gabriel@civix.test", "contrasena": "otraclave"},
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["usuario"]["es_gerencial"])
+
+    def test_login_credenciales_invalidas_devuelve_401(self):
+        response = self.client.post(
+            reverse("auth_login"),
+            data={"correo": "julian@civix.test", "contrasena": "incorrecta"},
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 401)
+
+    def test_me_sin_token_devuelve_401(self):
+        response = self.client.get(reverse("auth_me"))
+        self.assertEqual(response.status_code, 401)
+
+    def test_me_con_token_devuelve_usuario(self):
+        token = self.client.post(
+            reverse("auth_login"),
+            data={"correo": "julian@civix.test", "contrasena": "clave123"},
+            content_type="application/json",
+        ).json()["token"]
+
+        response = self.client.get(
+            reverse("auth_me"), HTTP_AUTHORIZATION=f"Token {token}"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["correo"], "julian@civix.test")
+
+    def test_logout_invalida_el_token(self):
+        token = self.client.post(
+            reverse("auth_login"),
+            data={"correo": "julian@civix.test", "contrasena": "clave123"},
+            content_type="application/json",
+        ).json()["token"]
+
+        logout = self.client.post(
+            reverse("auth_logout"),
+            data={"token": token},
+            content_type="application/json",
+        )
+        self.assertEqual(logout.status_code, 200)
+
+        me = self.client.get(reverse("auth_me"), HTTP_AUTHORIZATION=f"Token {token}")
+        self.assertEqual(me.status_code, 401)
+
+    def test_endpoints_de_negocio_siguen_funcionando_sin_token(self):
+        """La seguridad esta PREPARADA pero NO forzada: sin token, los
+        endpoints de negocio existentes deben seguir respondiendo 200."""
+        url = reverse("crear_proyecto", kwargs={"empresa_id": self.empresa.id})
+        response = self.client.get(url)  # listar proyectos, sin token
+        self.assertEqual(response.status_code, 200)

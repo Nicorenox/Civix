@@ -24,6 +24,7 @@ class TransicionInvalidaError(Exception):
     """
     pass
 
+
 class CredencialesInvalidasError(Exception):
     """
     Se lanza cuando el login falla (correo no existe o contrasena

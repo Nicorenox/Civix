@@ -1,4 +1,3 @@
-from django import forms
 from django.contrib import admin
 from .models import (
     Empresa,
@@ -8,6 +7,7 @@ from .models import (
     Inspeccion,
     Fotografia,
     RegistroBitacora,
+    SesionToken,
 )
 
 
@@ -17,40 +17,8 @@ class EmpresaAdmin(admin.ModelAdmin):
     search_fields = ("nombre", "nit")
 
 
-class UsuarioAdminForm(forms.ModelForm):
-    contrasena = forms.CharField(
-        label="Contraseña",
-        required=False,
-        widget=forms.PasswordInput,
-        help_text=(
-            "Escribe una contraseña para crear el usuario o cambiarla. "
-            "Déjala en blanco al editar si no quieres modificarla."
-        ),
-    )
-
-    class Meta:
-        model = Usuario
-        exclude = ("contrasena_hash",)
-
-    def save(self, commit=True):
-        usuario = super().save(commit=False)
-        nueva_contrasena = self.cleaned_data.get("contrasena")
-        if nueva_contrasena:
-            usuario.set_password(nueva_contrasena)
-        elif not usuario.contrasena_hash:
-            # Usuario nuevo sin contraseña escrita: evita guardarlo
-            # con contrasena_hash vacío (no podría iniciar sesión nunca).
-            raise forms.ValidationError(
-                "Debes escribir una contraseña para crear el usuario."
-            )
-        if commit:
-            usuario.save()
-        return usuario
-
-
 @admin.register(Usuario)
 class UsuarioAdmin(admin.ModelAdmin):
-    form = UsuarioAdminForm
     list_display = ("nombre", "correo", "empresa", "rol")
     list_filter = ("rol",)
     search_fields = ("nombre", "correo")
@@ -88,3 +56,9 @@ class FotografiaAdmin(admin.ModelAdmin):
 class RegistroBitacoraAdmin(admin.ModelAdmin):
     list_display = ("proyecto", "accion", "usuario", "creado_en")
     list_filter = ("accion",)
+
+
+@admin.register(SesionToken)
+class SesionTokenAdmin(admin.ModelAdmin):
+    list_display = ("usuario", "dispositivo", "activo", "creado_en", "ultimo_uso")
+    list_filter = ("activo",)

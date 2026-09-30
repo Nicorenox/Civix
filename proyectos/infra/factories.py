@@ -1,6 +1,6 @@
 import os
 
-from .notificadores import EmailNotificador, ConsoleNotificador
+from .notificadores import EmailNotificador, ConsoleNotificador, HttpNotificador
 
 
 class NotificadorFactory:
@@ -12,6 +12,7 @@ class NotificadorFactory:
 
     Uso:
       ENV_TYPE=REAL  -> EmailNotificador   (produccion)
+      ENV_TYPE=MICROSERVICIO -> HttpNotificador (Flask, Strangler Pattern)
       ENV_TYPE=DEV   -> ConsoleNotificador (por defecto)
     """
 
@@ -19,6 +20,8 @@ class NotificadorFactory:
     def crear():
         env_type = os.environ.get("ENV_TYPE", "DEV")
 
+        if env_type == "MICROSERVICIO":
+            return HttpNotificador()
         if env_type == "REAL":
             return EmailNotificador()
         return ConsoleNotificador()

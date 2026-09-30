@@ -11,18 +11,26 @@ class InspeccionService:
     Capa de Aplicacion (Service Layer) para el agregado Inspeccion.
     Orquesta el flujo de negocio principal de la Entrega 1:
 
-        crear_inspeccion()    -> Inspeccion queda en PENDIENTE
-        corregir_inspeccion() -> edita datos mientras sigue PENDIENTE
+        crear_inspeccion()   -> Inspeccion queda en PENDIENTE
+        corregir_inspeccion()-> edita datos mientras sigue PENDIENTE
         confirmar_inspeccion()-> pasa a CONFIRMADA y ACTUALIZA
                                   oficialmente Proyecto.porcentaje_avance
 
     Cada metodo tiene una unica responsabilidad (SRP). Todos escriben
-    en RegistroBitacora (auditoria/historial del sistema).
+    en RegistroBitacora, que es la auditoria/historial del sistema
+    (equivalente a la pantalla "Bitacora" de los mockups).
+
+    Cumple DIP: depende de la abstraccion `Notificador`, inyectada por
+    quien construye el servicio (la vista), nunca de una implementacion
+    concreta.
     """
 
     def __init__(self, notificador):
         self.notificador = notificador
 
+    # ------------------------------------------------------------------
+    # Crear inspeccion
+    # ------------------------------------------------------------------
     @transaction.atomic
     def crear_inspeccion(self, proyecto_id, inspector_id, tipo_inspeccion,
                           observaciones, fecha_visita,
@@ -30,6 +38,8 @@ class InspeccionService:
         proyecto = Proyecto.objects.select_for_update().get(id=proyecto_id)
         inspector = Usuario.objects.get(id=inspector_id)
 
+        # El Builder garantiza que la Inspeccion sea valida y quede en
+        # estado PENDIENTE antes de guardarla (nunca se crea confirmada).
         inspeccion = (
             InspeccionBuilder()
             .para_proyecto(proyecto)
@@ -59,6 +69,9 @@ class InspeccionService:
 
         return inspeccion
 
+    # ------------------------------------------------------------------
+    # Corregir inspeccion (solo mientras esta PENDIENTE)
+    # ------------------------------------------------------------------
     @transaction.atomic
     def corregir_inspeccion(self, inspeccion_id, observaciones=None,
                              porcentaje_avance_reportado=None,
@@ -93,6 +106,9 @@ class InspeccionService:
 
         return inspeccion
 
+    # ------------------------------------------------------------------
+    # Confirmar inspeccion -> actualiza oficialmente el Proyecto
+    # ------------------------------------------------------------------
     @transaction.atomic
     def confirmar_inspeccion(self, inspeccion_id, usuario_id=None):
         inspeccion = Inspeccion.objects.select_for_update().get(id=inspeccion_id)
@@ -106,6 +122,8 @@ class InspeccionService:
         inspeccion.confirmada_en = timezone.now()
         inspeccion.save()
 
+        # Unico lugar de todo el sistema donde Proyecto.porcentaje_avance
+        # cambia de valor. Ver comentario en models.py.
         proyecto = Proyecto.objects.select_for_update().get(id=inspeccion.proyecto_id)
         proyecto.porcentaje_avance = inspeccion.porcentaje_avance_reportado
         proyecto.save(update_fields=["porcentaje_avance"])
@@ -127,6 +145,8 @@ class InspeccionService:
             descripcion=f"Avance actualizado al {proyecto.porcentaje_avance}%.",
         )
 
+        # Reutilizamos la misma Factory de Notificador que ya exige el PDF
+        # (satisface el requisito con una segunda variante de uso real).
         self.notificador.enviar_confirmacion(
             destinatario=proyecto.empresa.correo,
             proyecto=proyecto,

@@ -2,6 +2,7 @@
 Django settings for civix_project project.
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -17,7 +18,7 @@ SECRET_KEY = 'django-insecure-br(rbp@8_yi=d*bubf8s8b2ue0o$ibsf9-@r9+l#3lwh4sx0q-
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["testserver", "localhost", "127.0.0.1"]
+ALLOWED_HOSTS = ["testserver", "localhost", "127.0.0.1", "django_web", "nginx"]
 
 
 # Application definition
@@ -68,12 +69,26 @@ WSGI_APPLICATION = 'civix_project.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+if os.environ.get('POSTGRES_DB'):
+    # Docker: PostgreSQL (definido en docker-compose.yml)
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.environ['POSTGRES_DB'],
+            'USER': os.environ['POSTGRES_USER'],
+            'PASSWORD': os.environ['POSTGRES_PASSWORD'],
+            'HOST': os.environ.get('POSTGRES_HOST', 'db'),
+            'PORT': os.environ.get('POSTGRES_PORT', '5432'),
+        }
     }
-}
+else:
+    # Local sin Docker: SQLite como antes
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 
 # Password validation
@@ -126,8 +141,6 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # llega un token valido, pero DEFAULT_PERMISSION_CLASSES sigue en AllowAny,
 # asi que ninguna vista exige login todavia salvo las que declaren
 # explicitamente permission_classes = [IsAuthenticated] (ver MeAPIView).
-
-
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.AllowAny',
@@ -137,7 +150,7 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_PARSER_CLASSES': [
         'rest_framework.parsers.JSONParser',
-        'rest_framework.parsers.MultiPartParser',
+        'rest_framework.parsers.MultiPartParser',  # necesario para subir fotos
         'rest_framework.parsers.FormParser',
     ],
 }

@@ -24,6 +24,8 @@ class TokenAccesoAuthentication(BaseAuthentication):
     def authenticate(self, request):
         header = request.META.get("HTTP_AUTHORIZATION", "")
         if not header.startswith(f"{self.keyword} "):
+            # Sin cabecera de token: no es un error, simplemente esta
+            # peticion queda anonima (AllowAny decidira si se permite).
             return None
 
         token = header[len(self.keyword) + 1:].strip()

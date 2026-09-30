@@ -8,11 +8,11 @@ class AuthService:
     """
     Capa de Aplicacion para autenticacion.
 
-    ESTADO ACTUAL: valida correo y contrasena, y emite un SesionToken.
-    NO exige 2FA ni certificado mTLS todavia -> cualquier endpoint sigue
-    siendo accesible sin este token mientras su vista use el permiso por
-    defecto (AllowAny, ver settings.py). Es autenticacion PREPARADA, no
-    FORZADA.
+    ESTADO ACTUAL (Entrega 1 + este paso adicional): valida correo y
+    contrasena, y emite un SesionToken. NO exige 2FA ni certificado mTLS
+    todavia -> cualquier endpoint sigue siendo accesible sin este token
+    mientras su vista use el permiso por defecto (AllowAny, ver
+    settings.py). Es autenticacion PREPARADA, no FORZADA.
 
     COMO ACTIVAR SEGURIDAD ADICIONAL MAS ADELANTE (sin romper nada):
       - 2FA: en iniciar_sesion(), si usuario.dos_fa_habilitado es True,

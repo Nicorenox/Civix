@@ -1,16 +1,9 @@
-
-import json
-from datetime import date
-
-
 from django.db import transaction
 
 from ..models import Empresa, Suscripcion
 from ..domain.builders import ProyectoBuilder
-from ..domain.exceptions import (
-    ProyectoInvalidoError,
-    LimiteSuscripcionExcedido,
-)
+from ..domain.exceptions import LimiteSuscripcionExcedido
+
 
 class ProyectoService:
     """
@@ -33,12 +26,14 @@ class ProyectoService:
         empresa = Empresa.objects.select_for_update().get(id=empresa_id)
         suscripcion = Suscripcion.objects.get(empresa=empresa)
 
+        # Regla de negocio: la Suscripcion controla los limites del plan.
         proyectos_actuales = empresa.proyectos.count()
         if not suscripcion.verificar_limites(proyectos_actuales):
             raise LimiteSuscripcionExcedido(
                 "La empresa alcanzo el limite de proyectos de su plan."
             )
 
+        # El Builder garantiza que el objeto sea valido antes de guardarlo.
         proyecto = (
             ProyectoBuilder()
             .para_empresa(empresa)
@@ -56,25 +51,3 @@ class ProyectoService:
         )
 
         return proyecto
-    @staticmethod
-    def _parse_date(value):
-        if not value:
-            return None
-
-        try:
-            return date.fromisoformat(value)
-        except ValueError:
-            raise ProyectoInvalidoError(
-                "Las fechas deben tener formato YYYY-MM-DD."
-            )
-
-    @staticmethod
-    def _verificar_limite(empresa, suscripcion):
-        proyectos_actuales = empresa.proyectos.count()
-
-        if not suscripcion.verificar_limites(proyectos_actuales):
-            raise LimiteSuscripcionExcedido(
-                "La empresa alcanzo el limite de proyectos."
-            )
-
-
