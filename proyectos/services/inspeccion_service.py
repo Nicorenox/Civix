@@ -1,4 +1,6 @@
 from django.db import transaction
+from datetime import timedelta
+
 from django.utils import timezone
 
 from ..models import Proyecto, Usuario, Inspeccion, Fotografia, RegistroBitacora
@@ -130,20 +132,28 @@ class InspeccionService:
 
         actor = self._resolver_actor(usuario_id, inspeccion.inspector)
 
-        RegistroBitacora.objects.create(
+        evento_confirmacion = RegistroBitacora.objects.create(
             proyecto=proyecto,
             inspeccion=inspeccion,
             usuario=actor,
             accion=RegistroBitacora.Accion.INSPECCION_CONFIRMADA,
             descripcion=f"Inspección confirmada por {actor.nombre}.",
         )
-        RegistroBitacora.objects.create(
+        evento_avance = RegistroBitacora.objects.create(
             proyecto=proyecto,
             inspeccion=inspeccion,
             usuario=actor,
             accion=RegistroBitacora.Accion.AVANCE_ACTUALIZADO,
             descripcion=f"Avance actualizado al {proyecto.porcentaje_avance}%.",
         )
+        # SQLite y otros backends pueden guardar ambos eventos con el mismo
+        # instante cuando se confirman dentro de una transacción rápida. Fijar
+        # el orden causal asegura que el evento de avance sea el más reciente
+        # y la bitácora no dependa del orden accidental de la base de datos.
+        if evento_avance.creado_en <= evento_confirmacion.creado_en:
+            RegistroBitacora.objects.filter(pk=evento_avance.pk).update(
+                creado_en=evento_confirmacion.creado_en + timedelta(microseconds=1)
+            )
 
         # Reutilizamos la misma Factory de Notificador que ya exige el PDF
         # (satisface el requisito con una segunda variante de uso real).

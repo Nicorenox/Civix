@@ -115,6 +115,11 @@ class Suscripcion(models.Model):
         TipoPlan.PROFESIONAL: 15,
         TipoPlan.EMPRESARIAL: 100,
     }
+    LIMITES_ALMACENAMIENTO_GB = {
+        TipoPlan.BASICO: 5,
+        TipoPlan.PROFESIONAL: 15,
+        TipoPlan.EMPRESARIAL: 100,
+    }
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     empresa = models.OneToOneField(

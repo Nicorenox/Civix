@@ -3,4 +3,7 @@ venv/
 __pycache__/
 *.pyc
 .env
+aws/duckdns.env
+*.pem
 db.sqlite3
+staticfiles_collected/

@@ -10,7 +10,7 @@ Builder y del Service Layer (domain/ y services/).
 
 from rest_framework import serializers
 
-from .models import Proyecto, Inspeccion, Fotografia, RegistroBitacora, Usuario
+from .models import Proyecto, Inspeccion, Fotografia, RegistroBitacora, Usuario, Suscripcion
 
 
 # ---------------------------------------------------------------------
@@ -26,6 +26,18 @@ class LoginSerializer(serializers.Serializer):
     dispositivo = serializers.CharField(
         required=False, allow_blank=True, default=""
     )
+
+
+class DemoProvisionSerializer(serializers.Serializer):
+    """Valida el contrato interno enviado por el microservicio de suscripciones."""
+
+    plan = serializers.ChoiceField(choices=Suscripcion.TipoPlan.choices)
+    empresa = serializers.CharField(min_length=2, max_length=150)
+    nit = serializers.RegexField(r"^[0-9.\-]{5,30}$", max_length=30)
+    correo_empresa = serializers.EmailField()
+    nombre_usuario = serializers.CharField(min_length=2, max_length=150)
+    correo_usuario = serializers.EmailField()
+    contrasena = serializers.CharField(min_length=8, max_length=128, write_only=True)
 
 
 class UsuarioSerializer(serializers.ModelSerializer):
@@ -49,13 +61,19 @@ class ProyectoSerializer(serializers.ModelSerializer):
     la creacion pasa por ProyectoCreateSerializer + ProyectoService, y
     porcentaje_avance solo cambia via InspeccionService.confirmar_inspeccion()."""
 
+    estado_display = serializers.CharField(source="get_estado_display", read_only=True)
+    riesgo_display = serializers.CharField(source="get_riesgo_display", read_only=True)
+    empresa_nombre = serializers.CharField(source="empresa.nombre", read_only=True)
+    responsable_nombre = serializers.CharField(source="responsable.nombre", read_only=True, default=None)
+
     class Meta:
         model = Proyecto
         fields = [
             "id", "empresa", "responsable", "nombre", "descripcion",
             "ciudad", "tipo_proyecto", "estado", "riesgo", "presupuesto",
             "porcentaje_avance", "fecha_inicio", "fecha_fin",
-            "imagen_principal",
+            "imagen_principal", "estado_display", "riesgo_display",
+            "empresa_nombre", "responsable_nombre",
         ]
         read_only_fields = fields
 

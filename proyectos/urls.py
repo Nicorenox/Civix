@@ -4,6 +4,7 @@ from .views import (
     CrearProyectoPageView,
     LoginPageView,
     PanelPageView,
+    ProyectoPageView,
     LoginAPIView,
     LogoutAPIView,
     MeAPIView,
@@ -13,9 +14,18 @@ from .views import (
     InspeccionCorregirAPIView,
     InspeccionConfirmarAPIView,
     BitacoraProyectoAPIView,
+    IntegracionesAPIView,
+    ReporteAsyncAPIView,
+    DemoProvisionAPIView,
+    SuscripcionesLocalProxyAPIView,
 )
 
 urlpatterns = [
+    # Puente útil en desarrollo local; Nginx envía estas rutas directamente a Flask.
+    path("v2/suscripciones/planes/", SuscripcionesLocalProxyAPIView.as_view(), name="suscripciones_local_planes"),
+    path("v2/suscripciones/checkout/", SuscripcionesLocalProxyAPIView.as_view(), name="suscripciones_local_checkout"),
+    # Alta autenticada solo entre servicios; Nginx bloquea este prefijo público.
+    path("internal/demo/provision/", DemoProvisionAPIView.as_view(), name="demo_provision_internal"),
     # --- Interfaz HTML ---
     path(
         "empresas/<uuid:empresa_id>/proyectos/crear/",
@@ -24,6 +34,10 @@ urlpatterns = [
     ),
     path("login/", LoginPageView.as_view(), name="login_page"),
     path("panel/", PanelPageView.as_view(), name="panel_page"),
+    path("panel/proyectos/<uuid:proyecto_id>/", ProyectoPageView.as_view(), name="proyecto_page"),
+    path("integraciones/", IntegracionesAPIView.as_view(), name="integraciones"),
+    path("reportes/", ReporteAsyncAPIView.as_view(), name="reporte_async"),
+    path("reportes/<str:task_id>/", ReporteAsyncAPIView.as_view(), name="reporte_estado"),
 
     # --- Autenticacion ---
     path("auth/login/", LoginAPIView.as_view(), name="auth_login"),

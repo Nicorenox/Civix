@@ -2,9 +2,9 @@ services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: civix
-      POSTGRES_USER: civix
-      POSTGRES_PASSWORD: civix_pass
+      POSTGRES_DB: ${POSTGRES_DB:-civix}
+      POSTGRES_USER: ${POSTGRES_USER:-civix}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-civix_pass}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -15,21 +15,25 @@ services:
 
   django_web:
     build: .
-    command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
+    command: sh -c "python manage.py migrate && python manage.py collectstatic --noinput && gunicorn civix_project.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 60"
+    env_file: .env
     environment:
-      POSTGRES_DB: civix
-      POSTGRES_USER: civix
-      POSTGRES_PASSWORD: civix_pass
+      POSTGRES_DB: ${POSTGRES_DB:-civix}
+      POSTGRES_USER: ${POSTGRES_USER:-civix}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-civix_pass}
       POSTGRES_HOST: db
       ENV_TYPE: MICROSERVICIO
       NOTIFICACIONES_URL: http://flask_notificaciones:5000/api/v2/notificaciones/
     volumes:
       - media:/app/media
+      - staticfiles:/app/staticfiles_collected
     depends_on:
       db:
         condition: service_healthy
       flask_notificaciones:
         condition: service_started
+      redis:
+        condition: service_healthy
     expose:
       - "8000"
 
@@ -40,16 +44,66 @@ services:
     expose:
       - "5000"
 
+  # Microservicio independiente que administra catálogo y checkout de demo.
+  # Solo coordina el alta por el endpoint interno autenticado de Django.
+  flask_suscripciones:
+    build: ./flask_suscripciones
+    environment:
+      DEMO_PROVISION_TOKEN: ${DEMO_PROVISION_TOKEN:?Define un secreto aleatorio DEMO_PROVISION_TOKEN en .env}
+      CIVIX_PROVISION_URL: http://django_web:8000/api/internal/demo/provision/
+    expose:
+      - "5001"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5001/api/v2/suscripciones/health', timeout=2)"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  celery_worker:
+    build: .
+    command: celery -A civix_project worker --loglevel=info --concurrency=2
+    env_file: .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-civix}
+      POSTGRES_USER: ${POSTGRES_USER:-civix}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-civix_pass}
+      POSTGRES_HOST: db
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+    volumes:
+      - media:/app/media
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
   nginx:
     image: nginx:1.27-alpine
     ports:
-      - "8080:80"
+      - "80:80"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - staticfiles:/srv/static:ro
+      - media:/srv/media:ro
     depends_on:
       - django_web
       - flask_notificaciones
+      - flask_suscripciones
 
 volumes:
   pgdata:
   media:
+  staticfiles:
+  redisdata:

@@ -1,4 +1,14 @@
+import hmac
+import json
+import os
+from datetime import timedelta
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
+
+from django.conf import settings
+from django.db import IntegrityError, transaction
 from django.shortcuts import get_object_or_404, render
+from django.utils import timezone
 from django.views import View
 
 from rest_framework.views import APIView
@@ -26,8 +36,89 @@ from .serializers import (
     InspeccionConfirmarSerializer,
     RegistroBitacoraSerializer,
     LoginSerializer,
+    DemoProvisionSerializer,
     UsuarioSerializer,
 )
+from .infra.adapters import aliado_adapter, terceros_adapter
+from .tasks import generar_reporte
+from celery.result import AsyncResult
+
+
+class IntegracionesAPIView(APIView):
+    """Facade para el servicio aliado y el tercero: ambos pasan por Adapter."""
+    def get(self, request):
+        return Response({"aliado": aliado_adapter().obtener_resumen(),
+                         "tercero": terceros_adapter().obtener_referencia()})
+
+
+class SuscripcionesLocalProxyAPIView(APIView):
+    """Puente de desarrollo para acceder a Flask sin ejecutar Nginx localmente.
+
+    En Docker Compose, Nginx enruta directamente /api/v2/suscripciones/ a Flask.
+    Este puente solo se usa al arrancar Django y Flask en dos procesos locales.
+    """
+
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    def _forward(self, request, suffix, method):
+        base = getattr(settings, "SUBSCRIPTIONS_SERVICE_URL", "http://127.0.0.1:5001")
+        headers = {"Accept": "application/json", "Accept-Language": request.headers.get("Accept-Language", "es")}
+        body = None
+        if method == "POST":
+            headers["Content-Type"] = "application/json"
+            body = json.dumps(request.data).encode("utf-8")
+        outgoing = Request(f"{base.rstrip('/')}/api/v2/suscripciones/{suffix}", data=body,
+                           headers=headers, method=method)
+        try:
+            with urlopen(outgoing, timeout=10) as response:
+                return Response(json.loads(response.read().decode("utf-8")), status=response.status)
+        except HTTPError as error:
+            try:
+                data = json.loads(error.read().decode("utf-8"))
+            except (ValueError, UnicodeDecodeError):
+                data = {"error": "El servicio de suscripciones devolvió una respuesta inválida."}
+            return Response(data, status=error.code)
+        except (URLError, TimeoutError, ValueError, UnicodeDecodeError):
+            return Response({"error": "El microservicio de suscripciones no está disponible."}, status=503)
+
+    def get(self, request):
+        return self._forward(request, "planes/", "GET")
+
+    def post(self, request):
+        return self._forward(request, "checkout/", "POST")
+
+
+class ReporteAsyncAPIView(APIView):
+    """Encola reportes mediante Celery/Redis y permite consultar su estado."""
+    def post(self, request):
+        empresa_id = request.data.get("empresa_id")
+        if not empresa_id or not Empresa.objects.filter(id=empresa_id).exists():
+            return Response({"error": "empresa_id válido es obligatorio."}, status=400)
+        # En ejecución local normalmente no hay Redis/Celery worker. Ejecutar
+        # la misma tarea en modo directo evita que la descarga quede esperando
+        # indefinidamente; Compose en AWS define ENV_TYPE=MICROSERVICIO y usa
+        # el flujo real de cola asíncrona que exige la arquitectura.
+        if os.environ.get("ENV_TYPE", "LOCAL").upper() == "LOCAL":
+            return Response({"estado": "success", "resultado": generar_reporte.run(str(empresa_id))})
+        try:
+            tarea = generar_reporte.delay(str(empresa_id))
+            return Response({"task_id": tarea.id, "estado": "encolado"}, status=202)
+        except Exception:
+            # Si Redis no está disponible en una ejecución local, la demo aún
+            # puede entregar el reporte. En EC2 se usa el worker Celery.
+            return Response({"estado": "success", "resultado": generar_reporte.run(str(empresa_id))})
+
+    def get(self, request, task_id=None):
+        if not task_id:
+            return Response({"error": "task_id es obligatorio."}, status=400)
+        tarea = AsyncResult(task_id)
+        respuesta = {"task_id": task_id, "estado": tarea.state.lower()}
+        if tarea.successful():
+            respuesta["resultado"] = tarea.result
+        elif tarea.failed():
+            respuesta["error"] = "No fue posible generar el reporte."
+        return Response(respuesta)
 
 
 # ---------------------------------------------------------------------
@@ -66,6 +157,13 @@ class PanelPageView(View):
 
     def get(self, request):
         return render(request, "proyectos/panel.html")
+
+
+class ProyectoPageView(View):
+    """Ficha HTML independiente: carga datos e historial desde las APIs Civix."""
+
+    def get(self, request, proyecto_id):
+        return render(request, "proyectos/proyecto_detalle.html", {"proyecto_id": proyecto_id})
 
 
 # ---------------------------------------------------------------------
@@ -125,6 +223,76 @@ class MeAPIView(APIView):
 
     def get(self, request):
         return Response(UsuarioSerializer(request.user).data)
+
+
+class DemoProvisionAPIView(APIView):
+    """Endpoint interno: registra empresa, suscripción demo y su administrador.
+
+    Solo el microservicio Flask puede llamarlo usando un secreto compartido.
+    Nginx rechaza el prefijo /api/internal/ desde Internet; la app Django no
+    confía en campos de la interfaz para asignar el plan o el rol.
+    """
+
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        secreto_configurado = getattr(settings, "DEMO_PROVISION_TOKEN", "")
+        secreto_recibido = request.headers.get("X-Civix-Service-Token", "")
+        if (len(secreto_configurado) < 32 or
+                not hmac.compare_digest(secreto_recibido, secreto_configurado)):
+            return Response({"error": "Servicio interno no autorizado."}, status=403)
+
+        entrada = DemoProvisionSerializer(data=request.data)
+        entrada.is_valid(raise_exception=True)
+        datos = entrada.validated_data
+        correo = datos["correo_usuario"].strip().lower()
+        nit = datos["nit"].strip()
+        if Usuario.objects.filter(correo__iexact=correo).exists():
+            return Response({"error": "Ese correo ya tiene una cuenta Civix."}, status=409)
+        if Empresa.objects.filter(nit=nit).exists():
+            return Response({"error": "Ese NIT ya tiene un espacio registrado."}, status=409)
+
+        # Alta de los tres registros en una sola transacción: nunca queda una
+        # empresa creada sin suscripción o sin el administrador inicial.
+        hoy = timezone.localdate()
+        try:
+            with transaction.atomic():
+                empresa = Empresa.objects.create(
+                    nombre=datos["empresa"].strip(), nit=nit,
+                    correo=datos["correo_empresa"].strip().lower(),
+                    plan=datos["plan"], estado=Empresa.Estado.ACTIVA,
+                )
+                suscripcion = Suscripcion.objects.create(
+                    empresa=empresa, plan=datos["plan"], fecha_inicio=hoy,
+                    fecha_fin=hoy + timedelta(days=30),
+                    almacenamiento_gb=Suscripcion.LIMITES_ALMACENAMIENTO_GB[datos["plan"]],
+                )
+                usuario = Usuario(
+                    empresa=empresa, nombre=datos["nombre_usuario"].strip(),
+                    correo=correo, rol=Usuario.Rol.ADMINISTRADOR,
+                )
+                usuario.set_password(datos["contrasena"])
+                usuario.save()
+        except IntegrityError:
+            # Resuelve la carrera entre dos checkouts que intentan registrar
+            # el mismo correo/NIT después de pasar las comprobaciones previas.
+            return Response({"error": "El correo o NIT ya tiene un espacio Civix."}, status=409)
+
+        return Response({
+            "empresa": {"id": str(empresa.id), "nombre": empresa.nombre},
+            "usuario": {"nombre": usuario.nombre, "correo": usuario.correo,
+                        "rol": usuario.get_rol_display()},
+            "suscripcion": {
+                "plan": suscripcion.plan,
+                "nombre": suscripcion.get_plan_display(),
+                "estado": "activa_demo",
+                "proyectos_max": Suscripcion.LIMITES_PROYECTOS[suscripcion.plan],
+                "almacenamiento_gb": suscripcion.almacenamiento_gb,
+                "fecha_fin": suscripcion.fecha_fin.isoformat(),
+            },
+            "login_url": "/api/login/",
+        }, status=status.HTTP_201_CREATED)
 
 
 # ---------------------------------------------------------------------

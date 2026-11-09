@@ -4,4 +4,11 @@ db.sqlite3
 media/
 .git/
 flask_notificaciones/
+flask_suscripciones/
 nginx/
+venv/
+.venv/
+.env
+.env.*
+!.env.example
+staticfiles_collected/

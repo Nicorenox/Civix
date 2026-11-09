@@ -41,9 +41,9 @@ class HttpNotificador(Notificador):
     Notificaciones por HTTP/JSON. Es una tercera implementacion del mismo
     contrato `Notificador`, asi que ningun Service ni vista cambia (DIP).
 
-    Resiliencia: si el microservicio no responde, NO se rompe el caso de
-    uso del monolito (crear proyecto / confirmar inspeccion); se registra
-    el fallo y se cae al mock por consola.
+    Resiliencia: la entrega se encola; si Redis no está disponible el flujo
+    de negocio sigue usando el fallback por consola. El worker reintenta los
+    errores transitorios de Flask sin bloquear la petición web.
     """
 
     def __init__(self, url=None, timeout=3):
@@ -58,7 +58,7 @@ class HttpNotificador(Notificador):
     def enviar_confirmacion(self, destinatario, proyecto, mensaje):
         import json
         import logging
-        import urllib.request
+        from proyectos.tasks import enviar_notificacion
 
         payload = json.dumps(
             {
@@ -68,17 +68,10 @@ class HttpNotificador(Notificador):
                 "canal": "email",
             }
         ).encode("utf-8")
-        peticion = urllib.request.Request(
-            self.url,
-            data=payload,
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
         try:
-            with urllib.request.urlopen(peticion, timeout=self.timeout):
-                pass
+            enviar_notificacion.delay(self.url, json.loads(payload.decode("utf-8")))
         except Exception as exc:  # timeout, conexion rechazada, 4xx/5xx
             logging.getLogger(__name__).warning(
-                "Microservicio de notificaciones no disponible (%s). Uso fallback.", exc
+                "Cola de notificaciones no disponible (%s). Uso fallback.", exc
             )
             ConsoleNotificador().enviar_confirmacion(destinatario, proyecto, mensaje)
