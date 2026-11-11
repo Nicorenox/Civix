@@ -1,0 +1,656 @@
+{% load i18n %}{% get_current_language as CURRENT_LANGUAGE %}<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}">
+<head>
+<meta charset="UTF-8">
+<title>Civix — {% trans "Panel de control" %}</title>
+<style>
+    :root {
+        --azul-oscuro: #0f1e3d;
+        --azul: #16305e;
+        --acento: #3b82f6;
+        --gris: #64748b;
+        --gris-claro: #f1f5f9;
+        --borde: #e2e8f0;
+        --verde: #059669;
+        --naranja: #d97706;
+        --rojo: #dc2626;
+    }
+    * { box-sizing: border-box; }
+    body {
+        margin: 0;
+        font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+        background: #f8fafc;
+        color: #1e293b;
+    }
+    header {
+        background: var(--azul-oscuro);
+        color: #fff;
+        padding: 16px 28px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    header .marca { font-weight: 700; font-size: 18px; }
+    header .marca span { color: #93c5fd; font-weight: 400; font-size: 13px; margin-left: 8px; }
+    .usuario-info { display: flex; align-items: center; gap: 14px; font-size: 13px; }
+    .usuario-info .rol-badge {
+        background: #1d3a6b; padding: 3px 10px; border-radius: 999px; font-size: 11px;
+        text-transform: uppercase; letter-spacing: 0.04em;
+    }
+    button.logout {
+        background: transparent; border: 1px solid #3b5583; color: #cbd5e1;
+        padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;
+    }
+    main { max-width: 1320px; margin: 0 auto; padding: 28px 32px 56px; }
+    .hero { display:flex; justify-content:space-between; align-items:center; gap:16px; margin:8px 0 22px; }
+    .hero h1 { font-size:28px; letter-spacing:-.04em; margin:0 0 5px; color:var(--azul-oscuro); }
+    .hero p { color:var(--gris); margin:0; font-size:14px; }
+    .metricas { display:grid; grid-template-columns:repeat(4,minmax(150px,1fr)); gap:14px; margin-bottom:18px; }
+    .metrica { background:#fff; border:1px solid var(--borde); border-radius:14px; padding:17px 18px; box-shadow:0 6px 20px #15243a08; }
+    .metrica small { color:var(--gris); font-size:12px; display:block; }
+    .metrica strong { font-size:25px; display:block; margin-top:9px; color:var(--azul-oscuro); }
+    .layout { display:grid; grid-template-columns:minmax(0,1.55fr) minmax(280px,.8fr); gap:17px; align-items:start; }
+    .columna { min-width:0; }
+    .tarjeta { box-shadow:0 6px 20px #15243a08; }
+    .titulo-seccion { display:flex; justify-content:space-between; align-items:center; gap:8px; }
+    .filtro { max-width:240px; margin:0; }
+    .integracion { background:#eef3ff; border-radius:9px; padding:11px 12px; font-size:12px; margin:9px 0; overflow-wrap:anywhere; }
+    .integracion strong { display:block; margin-bottom:4px; color:var(--azul-oscuro); }
+    .estado-dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:#94a3b8; margin-right:6px; }
+    .estado-dot.ok { background:#10b981; }
+    .link-accion { color:#1d4ed8; border:0; background:none; cursor:pointer; font:inherit; padding:0; }
+    @media(max-width:900px) { main{padding:20px 16px 40px}.metricas{grid-template-columns:repeat(2,1fr)}.layout{grid-template-columns:1fr} }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+    .tarjeta {
+        background: #fff; border: 1px solid var(--borde); border-radius: 12px;
+        padding: 18px; margin-bottom: 20px;
+    }
+    .tarjeta h2 { font-size: 15px; margin: 0 0 14px 0; color: var(--azul-oscuro); }
+    .proyecto-card {
+        background: #fff; border: 1px solid var(--borde); border-radius: 12px;
+        padding: 16px; cursor: pointer; transition: box-shadow .15s;
+    }
+    .proyecto-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.08); }
+    .proyecto-card.seleccionado { border-color: var(--acento); box-shadow: 0 0 0 2px #bfdbfe; }
+    .proyecto-card h3 { margin: 0 0 4px 0; font-size: 15px; }
+    .proyecto-card .meta { font-size: 12px; color: var(--gris); margin-bottom: 10px; }
+    .badge { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 999px; }
+    .badge.bajo { background: #ecfdf5; color: var(--verde); }
+    .badge.medio { background: #fffbeb; color: var(--naranja); }
+    .badge.alto { background: #fef2f2; color: var(--rojo); }
+    .barra { height: 6px; background: var(--gris-claro); border-radius: 999px; margin-top: 10px; overflow: hidden; }
+    .barra > div { height: 100%; background: var(--acento); }
+    label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; color: #334155; }
+    input, select, textarea {
+        width: 100%; padding: 8px 10px; border: 1px solid var(--borde);
+        border-radius: 6px; font-size: 13px; margin-bottom: 12px; font-family: inherit;
+    }
+    .fila { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    button.primario {
+        background: var(--azul-oscuro); color: #fff; border: none; padding: 9px 16px;
+        border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer;
+    }
+    button.primario:hover { background: var(--azul); }
+    button.secundario {
+        background: #fff; color: var(--azul-oscuro); border: 1px solid var(--borde);
+        padding: 7px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; margin-right: 6px;
+    }
+    .inspeccion-item { border: 1px solid var(--borde); border-radius: 10px; padding: 12px; margin-bottom: 10px; }
+    .inspeccion-item .top { display: flex; justify-content: space-between; align-items: center; }
+    .correccion-inspeccion { margin-top:14px; padding:14px; background:#f7f9fd; border:1px solid var(--borde); border-radius:10px; }
+    .correccion-inspeccion[hidden] { display:none; }
+    .acciones-correccion { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
+    .inspeccion-item .link-accion { display:inline-block; margin-top:12px; text-decoration:none; font-weight:700; }
+    .bitacora-item { padding: 10px 0; border-bottom: 1px solid var(--gris-claro); font-size: 13px; }
+    .bitacora-item .accion { font-weight: 600; color: var(--azul-oscuro); }
+    .bitacora-item .fecha { color: var(--gris); font-size: 11px; }
+    .vacio { color: var(--gris); font-size: 13px; padding: 12px 0; }
+    .oculto { display: none !important; }
+    .mensaje-ok { background: #ecfdf5; color: var(--verde); padding: 8px 12px; border-radius: 6px; font-size: 12px; margin-bottom: 12px; }
+    .mensaje-error { background: #fef2f2; color: var(--rojo); padding: 8px 12px; border-radius: 6px; font-size: 12px; margin-bottom: 12px; }
+    /* Shell del panel solicitado: navegación persistente a la izquierda y contenido adaptable. */
+    body { min-height:100vh; }
+    .app-shell { min-height:100vh; display:flex; }
+    .sidebar { width:250px; flex:0 0 250px; min-height:100vh; padding:22px 15px 16px; background:#0f1e3d; color:#d9e4f5; display:flex; flex-direction:column; position:sticky; top:0; height:100vh; }
+    .side-brand { padding:4px 12px 25px; font-weight:850; letter-spacing:.1em; color:#fff; font-size:20px; }
+    .side-brand span { display:block; margin-top:4px; color:#8ca3c7; font-size:11px; letter-spacing:0; font-weight:500; }
+    .side-label { padding:12px 12px 7px; color:#8195b5; font-size:10px; font-weight:800; letter-spacing:.13em; text-transform:uppercase; }
+    .side-nav { display:grid; gap:4px; }
+    .side-nav a { display:flex; gap:11px; align-items:center; padding:11px 12px; border-radius:9px; color:#c5d2e7; font-size:13px; transition:.15s; }
+    .side-nav a:hover,.side-nav a.activo { background:#20385e; color:white; }
+    .side-nav .nav-icon { width:18px; text-align:center; color:#91baff; font-size:15px; }
+    .side-spacer { flex:1; }
+    .profile-box { border-top:1px solid #2b4164; padding-top:14px; }
+    .profile-toggle { border:0; width:100%; display:flex; align-items:center; gap:10px; padding:10px; background:transparent; color:white; text-align:left; border-radius:10px; cursor:pointer; }
+    .profile-toggle:hover,.profile-toggle[aria-expanded="true"] { background:#20385e; }
+    .avatar { width:34px;height:34px;flex:0 0 34px;border-radius:50%;display:grid;place-items:center;background:#dbeafe;color:#1d4ed8;font-weight:800; }
+    .profile-summary { min-width:0;flex:1; }.profile-summary strong,.profile-summary small { display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }.profile-summary strong{font-size:12px}.profile-summary small{font-size:10px;color:#9db0ce;margin-top:3px}
+    .profile-menu { display:none; margin:0 5px 8px; padding:10px; border-radius:9px; background:#1a3156; font-size:11px; color:#afc0da; overflow-wrap:anywhere; }
+    .profile-menu.abierto { display:block; }.profile-menu p { margin:4px 0 10px; }.profile-menu button { width:100%;padding:9px;border-radius:7px;border:1px solid #496185;background:#14294b;color:#fff;cursor:pointer;text-align:left; }
+    .workspace { flex:1; min-width:0; }.topbar { height:62px; padding:0 30px; display:flex; justify-content:space-between; align-items:center; background:white; border-bottom:1px solid var(--borde); }
+    .topbar-label { color:var(--gris);font-size:12px; }.topbar select { margin:0!important; padding:7px 9px!important; background:white!important; color:var(--azul-oscuro)!important; border-color:var(--borde)!important; }
+    main { max-width:1480px; }
+    .anchor-section { scroll-margin-top:18px; }
+    .perfil-card { display:flex;align-items:center;gap:16px; }.perfil-avatar { width:54px;height:54px;border-radius:50%;background:#dbeafe;color:#1d4ed8;display:grid;place-items:center;font-size:20px;font-weight:800; }
+    .perfil-card p { margin:5px 0;color:var(--gris);font-size:13px; }
+    @media(max-width:760px) { .sidebar{width:70px;flex-basis:70px;padding:17px 8px}.side-brand{font-size:0;padding:5px 10px 24px}.side-brand:before{content:"C";font-size:20px}.side-brand span,.side-label,.side-nav .nav-text,.profile-summary,.profile-chevron{display:none}.side-nav a{justify-content:center;padding:12px 4px}.side-nav .nav-icon{width:auto;font-size:18px}.profile-toggle{justify-content:center;padding:6px}.profile-menu{position:absolute;bottom:70px;left:65px;width:220px;z-index:3;box-shadow:0 12px 30px #0004}.topbar{padding:0 16px}main{padding:20px 14px 40px}.hero{align-items:flex-start}.metricas{grid-template-columns:repeat(2,minmax(120px,1fr))} }
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+<aside class="sidebar" aria-label="Navegación del panel">
+    <a class="side-brand" href="/api/panel/">CIVIX<span>{% trans "Gestión de obra" %}</span></a>
+    <div class="side-label">{% trans "Espacio de trabajo" %}</div>
+    <nav class="side-nav">
+        <a class="activo" href="#inicio"><span class="nav-icon">⌂</span><span class="nav-text">{% trans "Panel de control" %}</span></a>
+        <a href="#proyectos"><span class="nav-icon">▦</span><span class="nav-text">{% trans "Proyectos" %}</span></a>
+        <a href="#estadisticas"><span class="nav-icon">▥</span><span class="nav-text">{% trans "Estadísticas" %}</span></a>
+        <a href="#inspecciones"><span class="nav-icon">✓</span><span class="nav-text">{% trans "Inspecciones" %}</span></a>
+        <a href="#integraciones"><span class="nav-icon">⟳</span><span class="nav-text">{% trans "Integraciones" %}</span></a>
+        <a href="#perfil"><span class="nav-icon">◉</span><span class="nav-text">{% trans "Mi perfil" %}</span></a>
+    </nav>
+    <div class="side-spacer"></div>
+    <div class="profile-box">
+        <div class="profile-menu" id="profile-menu"><strong id="profile-menu-name"></strong><p id="profile-email"></p><button id="btn-logout">↪ &nbsp;{% trans "Cerrar sesión" %}</button></div>
+        <button class="profile-toggle" id="profile-toggle" aria-expanded="false" aria-controls="profile-menu" aria-label="Perfil y sesión">
+            <span class="avatar" id="user-avatar">C</span><span class="profile-summary"><strong id="usuario-nombre"></strong><small id="usuario-rol"></small></span><span class="profile-chevron">⌃</span>
+        </button>
+    </div>
+</aside>
+<div class="workspace">
+<div class="topbar"><span class="topbar-label">{% trans "Espacio de trabajo" %} / Civix</span><form action="/i18n/setlang/" method="post" style="margin:0">{% csrf_token %}<input name="next" type="hidden" value="{{ request.path }}"><select name="language" aria-label="Idioma" onchange="this.form.submit()"><option value="es" {% if CURRENT_LANGUAGE == 'es' %}selected{% endif %}>Español</option><option value="en" {% if CURRENT_LANGUAGE == 'en' %}selected{% endif %}>English</option></select></form></div>
+<main>
+    <section class="hero anchor-section" id="inicio"><div><h1>{% trans "Panel de control" %}</h1><p>{% trans "Resumen de tus proyectos, inspecciones y actividad reciente." %}</p></div><button class="secundario" id="btn-reporte">{% trans "Generar reporte" %}</button></section>
+    <section class="metricas anchor-section" id="estadisticas" aria-label="Indicadores de proyectos">
+        <div class="metrica"><small>{% trans "Proyectos" %}</small><strong id="kpi-proyectos">—</strong></div><div class="metrica"><small>{% trans "Avance promedio" %}</small><strong id="kpi-avance">—</strong></div><div class="metrica"><small>{% trans "Inspecciones pendientes" %}</small><strong id="kpi-pendientes">—</strong></div><div class="metrica"><small>{% trans "Proyectos en ejecución" %}</small><strong id="kpi-ejecucion">—</strong></div>
+    </section><div class="layout"><div class="columna">
+    <div class="tarjeta anchor-section" id="proyectos">
+        <div class="titulo-seccion"><h2>{% trans "Proyectos de mi empresa" %}</h2><input class="filtro" id="filtro-proyectos" type="search" placeholder="{% trans 'Buscar proyecto…' %}" aria-label="Buscar proyecto"></div>
+        <div id="lista-proyectos" class="grid"><p class="vacio">{% trans "Cargando…" %}</p></div>
+    </div>
+
+    <!-- Solo visible para roles operativos -->
+    <div class="tarjeta oper-solo">
+        <h2>{% trans "Crear proyecto" %}</h2>
+        <div id="msg-crear-proyecto"></div>
+        <form id="form-crear-proyecto">
+            <label>{% trans "Nombre" %}</label>
+            <input type="text" id="cp-nombre" required>
+            <label>{% trans "Descripción" %}</label>
+            <input type="text" id="cp-descripcion">
+        <div class="fila">
+                <div><label>{% trans "Fecha inicio" %}</label><input type="date" id="cp-fecha-inicio"></div>
+                <div><label>{% trans "Fecha fin" %}</label><input type="date" id="cp-fecha-fin"></div>
+            </div>
+            <button type="submit" class="primario">{% trans "Crear proyecto" %}</button>
+        </form>
+    </div>
+
+    <div class="tarjeta">
+        <h2>{% trans "Proyecto seleccionado:" %} <span id="proyecto-actual-nombre">{% trans "ninguno" %}</span></h2>
+
+        <!-- Solo visible para roles operativos -->
+        <div class="oper-solo anchor-section" id="inspecciones">
+            <h2 style="margin-top:18px;">{% trans "Nueva inspección" %}</h2>
+            <div id="msg-crear-inspeccion"></div>
+            <form id="form-crear-inspeccion">
+                <label for="ins-proyecto">{% trans "Proyecto asociado a esta inspección" %}</label>
+                <select id="ins-proyecto" required></select>
+                <div class="fila">
+                    <div>
+                        <label>{% trans "Tipo de inspección" %}</label>
+                        <select id="ins-tipo">
+                            <option value="avance_general">{% trans "Avance general" %}</option>
+                            <option value="estructura">{% trans "Estructura" %}</option>
+                            <option value="fachada_acabados">{% trans "Fachada y acabados" %}</option>
+                            <option value="instalaciones">{% trans "Instalaciones" %}</option>
+                            <option value="otro">{% trans "Otro" %}</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>{% trans "Fecha de visita" %}</label>
+                        <input type="date" id="ins-fecha" required>
+                    </div>
+                </div>
+                <label>{% trans "Observaciones" %}</label>
+                <textarea id="ins-observaciones" rows="2"></textarea>
+                <div class="fila">
+                    <div>
+                        <label>{% trans "% de avance reportado" %}</label>
+                        <input type="number" id="ins-avance" min="0" max="100" step="0.01" required>
+                    </div>
+                    <div>
+                        <label>{% trans "Fotografías" %}</label>
+                        <input type="file" id="ins-fotos" multiple accept="image/*">
+                    </div>
+                </div>
+                <button type="submit" class="primario">{% trans "Registrar inspección (queda pendiente)" %}</button>
+            </form>
+
+            <h2 style="margin-top:22px;">{% trans "Inspecciones pendientes de confirmación" %}</h2>
+            <div id="lista-pendientes"><p class="vacio">{% trans "Selecciona un proyecto." %}</p></div>
+        </div>
+
+        <h2 style="margin-top:22px;">{% trans "Bitácora del proyecto" %}</h2>
+        <div id="lista-bitacora"><p class="vacio">{% trans "Selecciona un proyecto." %}</p></div>
+    </div>
+    </div><aside class="columna"><section class="tarjeta anchor-section" id="integraciones"><h2>{% trans "Integraciones" %}</h2><p class="meta">{% trans "Servicios conectados al ecosistema Civix" %}</p><div id="estado-integraciones"><p class="vacio">{% trans "Consultando servicios…" %}</p></div><button class="link-accion" id="btn-integraciones">{% trans "Actualizar estado" %}</button></section><section class="tarjeta"><h2>{% trans "Arquitectura" %}</h2><p class="meta">{% trans "Django · Flask · Nginx · Redis / Celery" %}</p><div class="integracion">{% trans "Notificaciones desacopladas por API Gateway. Reportes procesados en segundo plano." %}</div><a href="/api/v2/sistema/" target="_blank" rel="noopener">{% trans "Ver endpoint de información" %}</a></section></aside></div>
+    <section class="tarjeta anchor-section" id="perfil"><h2>{% trans "Mi perfil" %}</h2><div class="perfil-card"><div class="perfil-avatar" id="perfil-avatar">C</div><div><strong id="perfil-nombre"></strong><p id="perfil-correo"></p><span class="badge bajo" id="perfil-rol"></span></div></div></section>
+</main>
+</div></div>
+
+<script>
+const TOKEN = localStorage.getItem("civix_token");
+const USUARIO = JSON.parse(localStorage.getItem("civix_usuario") || "null");
+const FORMATO_FECHA = document.documentElement.lang === "en" ? "en-US" : "es-CO";
+const TEXTO = {vacio: "{% trans 'Aún no hay proyectos. Crea el primero arriba.' %}", ciudad: "{% trans 'Ciudad no definida' %}", tipo: "{% trans 'Sin tipo' %}", riesgo: "{% trans 'Riesgo' %}", avance: "{% trans 'de avance' %}", observaciones: "{% trans 'Observaciones' %}", avanceReportado: "{% trans '% de avance reportado' %}", aliado: "{% trans 'Servicio aliado' %}", tercero: "{% trans 'API de terceros' %}", conectado: "{% trans 'Conectado' %}", demo: "{% trans 'Datos simulados' %}", error: "{% trans 'No se pudo consultar el servicio.' %}", sinPendientes: "{% trans 'No hay inspecciones pendientes.' %}", selecciona: "{% trans 'Selecciona un proyecto.' %}", confirmar: "{% trans 'Confirmar' %}", corregir: "{% trans 'Corregir' %}", cancelar: "{% trans 'Cancelar' %}", guardar: "{% trans 'Guardar corrección' %}", verDetalle: "{% trans 'Abrir ficha del proyecto →' %}", sistema: "{% trans 'Sistema' %}", sinActividad: "{% trans 'Sin actividad registrada todavía.' %}", pendienteMsg: "{% trans 'Inspección registrada como pendiente.' %}", noConfirmada: "{% trans 'No se pudo confirmar (409: la inspección ya no está pendiente).' %}", noCorregir: "{% trans 'No se pudo corregir.' %}"};
+
+if (!TOKEN || !USUARIO) {
+    window.location.href = "/api/login/";
+}
+
+let proyectoActualId = null;
+let todosLosProyectos = [];
+let proyectoFiltrado = "";
+
+// Escapa datos dinámicos para que nombres y respuestas de servicios no se interpreten como HTML.
+function escapeHTML(value) { return String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+async function civixFetch(url, options = {}) {
+    options.headers = Object.assign(
+        { "Authorization": `Token ${TOKEN}` },
+        options.headers || {}
+    );
+    const resp = await fetch(url, options);
+    return resp;
+}
+
+function iniciarPanel() {
+    document.getElementById("usuario-nombre").textContent = USUARIO.nombre;
+    document.getElementById("usuario-rol").textContent = USUARIO.rol_display || USUARIO.rol;
+    // El usuario y el cierre de sesión viven en el menú del lateral, no en la cabecera.
+    const inicial = (USUARIO.nombre || "C").trim().charAt(0).toLocaleUpperCase();
+    document.getElementById("user-avatar").textContent = inicial;
+    document.getElementById("perfil-avatar").textContent = inicial;
+    document.getElementById("perfil-nombre").textContent = USUARIO.nombre || "Usuario Civix";
+    document.getElementById("perfil-correo").textContent = USUARIO.correo || USUARIO.email || "";
+    document.getElementById("perfil-rol").textContent = USUARIO.rol_display || USUARIO.rol;
+    document.getElementById("profile-menu-name").textContent = USUARIO.nombre || "Usuario Civix";
+    document.getElementById("profile-email").textContent = USUARIO.correo || USUARIO.email || "";
+    document.getElementById("profile-toggle").addEventListener("click", () => {
+        const menu = document.getElementById("profile-menu");
+        const abierto = menu.classList.toggle("abierto");
+        document.getElementById("profile-toggle").setAttribute("aria-expanded", String(abierto));
+    });
+    // El menú marca claramente la sección actual al navegar por las anclas del panel.
+    document.querySelectorAll(".side-nav a").forEach(link => link.addEventListener("click", () => {
+        document.querySelectorAll(".side-nav a").forEach(item => item.classList.remove("activo"));
+        link.classList.add("activo");
+    }));
+
+    if (USUARIO.es_gerencial) {
+        document.querySelectorAll(".oper-solo").forEach(el => el.classList.add("oculto"));
+    }
+
+    document.getElementById("btn-logout").addEventListener("click", cerrarSesion);
+    document.getElementById("form-crear-proyecto").addEventListener("submit", crearProyecto);
+    document.getElementById("form-crear-inspeccion").addEventListener("submit", crearInspeccion);
+    document.getElementById("ins-proyecto").addEventListener("change", ev => {
+        const proyecto = todosLosProyectos.find(p => p.id === ev.target.value);
+        if (proyecto) seleccionarProyecto(proyecto.id, proyecto.nombre, false);
+    });
+    document.getElementById("filtro-proyectos").addEventListener("input", ev => { proyectoFiltrado = ev.target.value.toLocaleLowerCase(); dibujarProyectos(); });
+    document.getElementById("btn-integraciones").addEventListener("click", cargarIntegraciones);
+    document.getElementById("btn-reporte").addEventListener("click", generarReporte);
+
+    cargarProyectos();
+    cargarIntegraciones();
+}
+
+async function cerrarSesion() {
+    await civixFetch("/api/auth/logout/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: TOKEN }),
+    });
+    localStorage.removeItem("civix_token");
+    localStorage.removeItem("civix_usuario");
+    window.location.href = "/api/login/";
+}
+
+async function cargarProyectos() {
+    const cont = document.getElementById("lista-proyectos");
+    const resp = await civixFetch(`/api/empresas/${USUARIO.empresa}/proyectos/`);
+    const proyectos = await resp.json();
+
+    todosLosProyectos = proyectos;
+    actualizarIndicadores();
+    dibujarProyectos();
+    if (!proyectos.length) { cont.innerHTML = `<p class="vacio">${TEXTO.vacio}</p>`; return; }
+    const solicitado = new URLSearchParams(location.search).get("proyecto");
+    const inicial = proyectos.find(p => p.id === solicitado) || proyectos.find(p => p.id === proyectoActualId) || proyectos[0];
+    if (!proyectoActualId && inicial) seleccionarProyecto(inicial.id, inicial.nombre, false);
+    actualizarSelectorProyectos();
+}
+
+function dibujarProyectos() {
+    const cont = document.getElementById("lista-proyectos");
+    const proyectos = todosLosProyectos.filter(p => `${p.nombre} ${p.ciudad} ${p.tipo_proyecto}`.toLocaleLowerCase().includes(proyectoFiltrado));
+    if (!proyectos.length) { cont.innerHTML = `<p class="vacio">${escapeHTML(TEXTO.vacio)}</p>`; return; }
+    cont.innerHTML = "";
+    proyectos.forEach(p => {
+        const div = document.createElement("div");
+        div.className = "proyecto-card" + (p.id === proyectoActualId ? " seleccionado" : "");
+        div.innerHTML = `
+            <h3>${escapeHTML(p.nombre)}</h3>
+            <div class="meta">${escapeHTML(p.ciudad || TEXTO.ciudad)} · ${escapeHTML(p.tipo_proyecto || TEXTO.tipo)}</div>
+            <span class="badge ${escapeHTML(p.riesgo)}">${TEXTO.riesgo} ${escapeHTML(p.riesgo)}</span>
+            <div class="barra"><div style="width:${Math.min(100,Math.max(0,Number(p.porcentaje_avance)||0))}%"></div></div>
+            <div class="meta" style="margin-top:6px;">${escapeHTML(p.porcentaje_avance)}% ${TEXTO.avance}</div>
+            <a class="link-accion" href="/api/panel/proyectos/${encodeURIComponent(p.id)}/">${escapeHTML(TEXTO.verDetalle)}</a>
+        `;
+        div.addEventListener("click", ev => { if (!ev.target.closest("a")) seleccionarProyecto(p.id, p.nombre); });
+        cont.appendChild(div);
+    });
+
+}
+
+function actualizarSelectorProyectos() {
+    const selector = document.getElementById("ins-proyecto");
+    if (!selector) return;
+    selector.innerHTML = todosLosProyectos.map(p => `<option value="${escapeHTML(p.id)}">${escapeHTML(p.nombre)}</option>`).join("");
+    if (proyectoActualId) selector.value = proyectoActualId;
+}
+
+async function actualizarIndicadores() {
+    const total=todosLosProyectos.length, promedio=total?todosLosProyectos.reduce((s,p)=>s+Number(p.porcentaje_avance||0),0)/total:0;
+    document.getElementById("kpi-proyectos").textContent=total;
+    document.getElementById("kpi-avance").textContent=`${promedio.toFixed(1)}%`;
+    document.getElementById("kpi-ejecucion").textContent=todosLosProyectos.filter(p=>p.estado==="en_ejecucion").length;
+    document.getElementById("kpi-pendientes").textContent="…";
+    try {
+        const conteos=await Promise.all(todosLosProyectos.map(async p=>{
+            const r=await civixFetch(`/api/proyectos/${p.id}/inspecciones/?estado=pendiente`);
+            const items=await r.json(); return Array.isArray(items)?items.length:0;
+        }));
+        document.getElementById("kpi-pendientes").textContent=conteos.reduce((a,b)=>a+b,0);
+    } catch { document.getElementById("kpi-pendientes").textContent="—"; }
+}
+
+// Consulta servicios a través de un Adapter del backend: el navegador no acopla
+// la interfaz al formato ni a la disponibilidad de cada proveedor externo.
+async function cargarIntegraciones() {
+    const cont=document.getElementById("estado-integraciones");
+    try {
+        const data=await (await civixFetch("/api/integraciones/")).json(); cont.innerHTML="";
+        [[TEXTO.aliado,data.aliado],[TEXTO.tercero,data.tercero]].forEach(([nombre,item])=>{
+            const conectado=item?.disponible, card=document.createElement("div"); card.className="integracion";
+            const resumen=item?.datos?JSON.stringify(item.datos.current||item.datos):(item?.mensaje||TEXTO.demo);
+            const etiqueta=item?.modo_demo?TEXTO.demo:(conectado?TEXTO.conectado:TEXTO.demo);
+            card.innerHTML=`<strong><span class="estado-dot ${conectado?"ok":""}"></span>${escapeHTML(nombre)} · ${escapeHTML(etiqueta)}</strong><span>${escapeHTML(String(resumen).slice(0,260))}</span>`; cont.appendChild(card);
+        });
+        const sys=document.createElement("div"); sys.className="integracion"; sys.innerHTML=`<strong><span class="estado-dot ok"></span>Civix API Gateway</strong>${escapeHTML("/api/v2/sistema/")}`; cont.appendChild(sys);
+        const credit=document.createElement("small"); credit.innerHTML=`{% trans 'Clima de Bogotá provisto por' %} <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> (CC BY 4.0)`; cont.appendChild(credit);
+    } catch { cont.innerHTML=`<div class="integracion">${escapeHTML(TEXTO.error)}</div>`; }
+}
+
+// Encola el resumen en Celery y descarga una versión PDF cuando termina.
+async function generarReporte() {
+    const boton=document.getElementById("btn-reporte"); boton.disabled=true;
+    try {
+        const resp=await civixFetch("/api/reportes/",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({empresa_id:USUARIO.empresa})});
+        const tarea=await resp.json(); if(!resp.ok) throw new Error(tarea.error||TEXTO.error);
+        if(tarea.resultado){ descargarReporte(tarea.resultado); boton.disabled=false; return; }
+        let consultas=0;
+        const consultar=async()=>{ const e=await(await civixFetch(`/api/reportes/${tarea.task_id}/`)).json();
+            if(e.estado==="success"){descargarReporte(e.resultado);boton.disabled=false;}
+            else if(["failure","revoked"].includes(e.estado)||++consultas>50){alert(e.error||TEXTO.error);boton.disabled=false;} else setTimeout(consultar,1200); };
+        consultar();
+    } catch(e){alert(e.message);boton.disabled=false;}
+}
+
+function descargarReporte(resultado) {
+    // PDF liviano generado en el navegador: mantiene el reporte asíncrono sin
+    // depender de un servicio externo ni de instalar un renderizador adicional.
+    const proyectos=resultado.proyectos||[];
+    const filas=[`Generado: ${resultado.generado_en||new Date().toLocaleString(FORMATO_FECHA)}`,`Proyectos incluidos: ${resultado.total??proyectos.length}`,""];
+    proyectos.forEach((p,i)=>{
+        filas.push(`${i+1}. ${p.nombre||"Proyecto"}`);
+        filas.push(`   Ciudad: ${p.ciudad||"No definida"} | Tipo: ${p.tipo||"—"} | Estado: ${p.estado||"—"}`);
+        filas.push(`   Fechas: ${p.fecha_inicio||"—"} a ${p.fecha_fin||"—"}`);
+        filas.push(`   Avance: ${p.avance??0}% | Riesgo: ${p.riesgo||"—"}`);
+        if(p.descripcion)filas.push(`   Descripcion: ${p.descripcion}`);
+        filas.push("");
+    });
+    if(!proyectos.length)filas.push("No hay proyectos registrados.");
+    const paginas=[];
+    for(let i=0;i<filas.length;i+=42)paginas.push(filas.slice(i,i+42));
+    const escapePdf=s=>String(s).replace(/[^\x20-\xFF]/g,"?").replace(/\\/g,"\\\\").replace(/\(/g,"\\(").replace(/\)/g,"\\)");
+    const objetos=[];const pageIds=paginas.map((_,i)=>3+i*2);const fontId=3+paginas.length*2;
+    objetos[1]="<< /Type /Catalog /Pages 2 0 R >>";
+    objetos[2]=`<< /Type /Pages /Kids [${pageIds.map(id=>`${id} 0 R`).join(" ")}] /Count ${paginas.length} >>`;
+    paginas.forEach((lineas,i)=>{
+        const pageId=3+i*2,contentId=pageId+1;let y=790;
+        let contenido="BT /F1 16 Tf 50 805 Td (Civix | Reporte de proyectos) Tj ET\n";
+        lineas.forEach(linea=>{contenido+=`BT /F1 9 Tf 50 ${y} Td (${escapePdf(linea)}) Tj ET\n`;y-=16;});
+        objetos[pageId]=`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 842] /Resources << /Font << /F1 ${fontId} 0 R >> >> /Contents ${contentId} 0 R >>`;
+        objetos[contentId]=`<< /Length ${contenido.length} >>\nstream\n${contenido}endstream`;
+    });
+    objetos[fontId]="<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>";
+    let pdf="%PDF-1.4\n%Civix\n",offsets=[0];
+    for(let id=1;id<objetos.length;id++){offsets[id]=pdf.length;pdf+=`${id} 0 obj\n${objetos[id]}\nendobj\n`;}
+    const xref=pdf.length;pdf+=`xref\n0 ${objetos.length}\n0000000000 65535 f \n`;
+    for(let id=1;id<objetos.length;id++)pdf+=`${String(offsets[id]).padStart(10,"0")} 00000 n \n`;
+    pdf+=`trailer\n<< /Size ${objetos.length} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
+    const bytes=new Uint8Array(pdf.length);for(let i=0;i<pdf.length;i++)bytes[i]=pdf.charCodeAt(i)&255;
+    const blob=new Blob([bytes],{type:"application/pdf"}),a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);a.download="civix-reporte.pdf";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+
+function seleccionarProyecto(id, nombre, recargar = true) {
+    proyectoActualId = id;
+    document.getElementById("proyecto-actual-nombre").textContent = nombre;
+    const selector = document.getElementById("ins-proyecto");
+    if (selector) selector.value = id;
+    dibujarProyectos();
+    if (recargar) cargarProyectos();
+    cargarBitacora(id);
+    if (!USUARIO.es_gerencial) cargarPendientes(id);
+}
+
+async function crearProyecto(ev) {
+    ev.preventDefault();
+    const msg = document.getElementById("msg-crear-proyecto");
+    msg.innerHTML = "";
+
+    const body = {
+        nombre: document.getElementById("cp-nombre").value,
+        descripcion: document.getElementById("cp-descripcion").value,
+        fechaInicio: document.getElementById("cp-fecha-inicio").value || null,
+        fechaFin: document.getElementById("cp-fecha-fin").value || null,
+    };
+
+    const resp = await civixFetch(`/api/empresas/${USUARIO.empresa}/proyectos/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+    });
+    const datos = await resp.json();
+
+    if (!resp.ok) {
+        msg.innerHTML = `<div class="mensaje-error">${escapeHTML(datos.error || JSON.stringify(datos))}</div>`;
+        return;
+    }
+
+    msg.innerHTML = `<div class="mensaje-ok">${escapeHTML("{% trans 'Proyecto creado:' %}")} "${escapeHTML(datos.nombre)}".</div>`;
+    document.getElementById("form-crear-proyecto").reset();
+    cargarProyectos();
+}
+
+async function crearInspeccion(ev) {
+    ev.preventDefault();
+    const msg = document.getElementById("msg-crear-inspeccion");
+    msg.innerHTML = "";
+
+    if (!proyectoActualId) {
+        msg.innerHTML = `<div class="mensaje-error">${escapeHTML(TEXTO.selecciona)}</div>`;
+        return;
+    }
+
+    const form = new FormData();
+    form.append("usuario_id", USUARIO.id);
+    form.append("tipo_inspeccion", document.getElementById("ins-tipo").value);
+    form.append("observaciones", document.getElementById("ins-observaciones").value);
+    form.append("fecha_visita", document.getElementById("ins-fecha").value);
+    form.append("porcentaje_avance_reportado", document.getElementById("ins-avance").value);
+
+    const fotos = document.getElementById("ins-fotos").files;
+    for (let i = 0; i < fotos.length; i++) {
+        form.append("fotografias", fotos[i]);
+    }
+
+    const resp = await civixFetch(`/api/proyectos/${proyectoActualId}/inspecciones/`, {
+        method: "POST",
+        body: form,
+    });
+    const datos = await resp.json();
+
+    if (!resp.ok) {
+        msg.innerHTML = `<div class="mensaje-error">${escapeHTML(datos.error || JSON.stringify(datos))}</div>`;
+        return;
+    }
+
+    msg.innerHTML = `<div class="mensaje-ok">${escapeHTML(TEXTO.pendienteMsg)}</div>`;
+    document.getElementById("form-crear-inspeccion").reset();
+    cargarPendientes(proyectoActualId);
+}
+
+async function cargarPendientes(proyectoId) {
+    const cont = document.getElementById("lista-pendientes");
+    const resp = await civixFetch(`/api/proyectos/${proyectoId}/inspecciones/?estado=pendiente`);
+    const inspecciones = await resp.json();
+
+    if (!inspecciones.length) {
+        cont.innerHTML = `<p class="vacio">${escapeHTML(TEXTO.sinPendientes)}</p>`;
+        return;
+    }
+
+    cont.innerHTML = "";
+    inspecciones.forEach(insp => {
+        const div = document.createElement("div");
+        div.className = "inspeccion-item";
+        div.id = `inspeccion-${insp.id}`;
+        div.innerHTML = `
+            <div class="top">
+                <div>
+                    <strong>${escapeHTML(insp.tipo_inspeccion_display)}</strong>
+                    — ${insp.porcentaje_avance_reportado}% reportado
+                    <div class="meta" style="color:#64748b;font-size:12px;">
+                    ${escapeHTML(insp.inspector_nombre)} · ${escapeHTML(insp.fecha_visita)} · ${insp.fotografias.length} foto(s)
+                    </div>
+                </div>
+                <div>
+                    <button class="secundario" data-accion="confirmar" data-id="${escapeHTML(insp.id)}">${TEXTO.confirmar}</button>
+                    <button type="button" class="secundario" data-accion="corregir" data-id="${escapeHTML(insp.id)}">${TEXTO.corregir}</button>
+                </div>
+            </div>
+            <form class="correccion-inspeccion" data-form-correccion hidden>
+                <label>${TEXTO.observaciones}</label>
+                <textarea name="observaciones" rows="3">${escapeHTML(insp.observaciones || "")}</textarea>
+                <label>${TEXTO.avanceReportado}</label>
+                <input name="porcentaje_avance_reportado" type="number" min="0" max="100" step="0.01" value="${escapeHTML(insp.porcentaje_avance_reportado)}" required>
+                <div class="acciones-correccion"><button type="submit" class="primario">${TEXTO.guardar}</button><button type="button" class="secundario" data-accion="cancelar">${TEXTO.cancelar}</button></div>
+                <div class="mensaje-error" data-error-correccion hidden></div>
+            </form>
+        `;
+        cont.appendChild(div);
+    });
+
+    cont.querySelectorAll("[data-accion='confirmar']").forEach(btn => {
+        btn.addEventListener("click", () => confirmarInspeccion(btn.dataset.id));
+    });
+    cont.querySelectorAll("[data-accion='corregir']").forEach(btn => {
+        btn.addEventListener("click", () => {
+            const formulario = document.querySelector(`#inspeccion-${CSS.escape(btn.dataset.id)} [data-form-correccion]`);
+            formulario.hidden = !formulario.hidden;
+        });
+    });
+    cont.querySelectorAll("[data-form-correccion]").forEach(formulario => {
+        formulario.addEventListener("submit", ev => corregirInspeccion(ev, formulario));
+        formulario.querySelector("[data-accion='cancelar']").addEventListener("click", () => { formulario.hidden = true; });
+    });
+}
+
+async function confirmarInspeccion(inspeccionId) {
+    const resp = await civixFetch(`/api/inspecciones/${inspeccionId}/confirmar/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ usuario_id: USUARIO.id }),
+    });
+    const datos = await resp.json();
+
+    if (!resp.ok) {
+        alert(datos.error || TEXTO.noConfirmada);
+        cargarPendientes(proyectoActualId);
+        return;
+    }
+
+    cargarProyectos();
+    cargarPendientes(proyectoActualId);
+    cargarBitacora(proyectoActualId);
+}
+
+async function corregirInspeccion(evento, formulario) {
+    evento.preventDefault();
+    const inspeccionId = formulario.closest(".inspeccion-item").id.replace("inspeccion-", "");
+    const boton = formulario.querySelector("button[type='submit']");
+    const error = formulario.querySelector("[data-error-correccion]");
+    error.hidden = true; boton.disabled = true;
+    const body = Object.fromEntries(new FormData(formulario).entries());
+    body.usuario_id = USUARIO.id;
+    const resp = await civixFetch(`/api/inspecciones/${encodeURIComponent(inspeccionId)}/corregir/`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+    });
+    const datos = await resp.json();
+
+    if (!resp.ok) {
+        error.textContent = datos.error || TEXTO.noCorregir;
+        error.hidden = false;
+        boton.disabled = false;
+        return;
+    }
+    const mensaje = document.getElementById("msg-crear-inspeccion");
+    mensaje.innerHTML = `<div class="mensaje-ok">${escapeHTML("{% trans 'La inspección se corrigió correctamente.' %}")}</div>`;
+    cargarPendientes(proyectoActualId);
+}
+
+async function cargarBitacora(proyectoId) {
+    const cont = document.getElementById("lista-bitacora");
+    const resp = await civixFetch(`/api/proyectos/${proyectoId}/bitacora/`);
+    const registros = await resp.json();
+
+    if (!registros.length) {
+        cont.innerHTML = `<p class="vacio">${escapeHTML(TEXTO.sinActividad)}</p>`;
+        return;
+    }
+
+    cont.innerHTML = "";
+    registros.forEach(r => {
+        const div = document.createElement("div");
+        div.className = "bitacora-item";
+        div.innerHTML = `
+            <div class="accion">${escapeHTML(r.accion_display)}</div>
+            <div>${escapeHTML(r.descripcion)}</div>
+            <div class="fecha">${new Date(r.creado_en).toLocaleString(FORMATO_FECHA)} · ${escapeHTML(r.usuario_nombre || TEXTO.sistema)}</div>
+        `;
+        cont.appendChild(div);
+    });
+}
+
+iniciarPanel();
+</script>
+</body>
+</html>
